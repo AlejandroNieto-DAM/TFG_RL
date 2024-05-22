@@ -1,0 +1,2 @@
+turtlebot3_machine_learning-master/turtlebot3_dqn:turtlebot3_machine_learning-master/turtlebot3_machine_learning:turtlebot3_simulations-master/turtlebot3_fake:turtlebot3_simulations-master/turtlebot3_gazebo:turtlebot3_simulations-master/turtlebot3_simulations
+-DCATKIN_DEVEL_PREFIX=/home/nietoff/tfg/devel -DCMAKE_INSTALL_PREFIX=/home/nietoff/tfg/install -G Unix Makefiles
