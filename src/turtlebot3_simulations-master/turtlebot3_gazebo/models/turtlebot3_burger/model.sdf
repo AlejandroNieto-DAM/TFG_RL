@@ -2,6 +2,7 @@
 <sdf version="1.5">
   <model name="turtlebot3_burger">  
 
+    <xacro:arg name="laser_visual" default="true"/>
     <link name="base">
 
       <inertial>

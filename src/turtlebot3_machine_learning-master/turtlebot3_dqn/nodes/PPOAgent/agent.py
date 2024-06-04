@@ -48,6 +48,36 @@ class Memory:
         self.rewards = []
         self.dones = []
 
+class ActorNetwork(keras.Model):
+    def __init__(self, n_actions, fc1_dims=256, fc2_dims=256):
+        super(ActorNetwork, self).__init__()
+
+        self.fc1 = Dense(fc1_dims, activation='relu')
+        self.fc2 = Dense(fc2_dims, activation='relu')
+        self.fc3 = Dense(n_actions, activation='softmax')
+
+    def call(self, state):
+        x = self.fc1(state)
+        x = self.fc2(x)
+        x = self.fc3(x)
+
+        return x
+
+
+class CriticNetwork(keras.Model):
+    def __init__(self, fc1_dims=256, fc2_dims=256):
+        super(CriticNetwork, self).__init__()
+        self.fc1 = Dense(fc1_dims, activation='relu')
+        self.fc2 = Dense(fc2_dims, activation='relu')
+        self.q = Dense(1, activation=None)
+
+    def call(self, state):
+        x = self.fc1(state)
+        x = self.fc2(x)
+        q = self.q(x)
+
+        return q
+        
 
 class PPOAgent:
     def __init__(self, n_actions, input_dims, gamma=0.99, alpha=0.0003,
@@ -59,19 +89,34 @@ class PPOAgent:
         self.n_epochs = n_epochs
         self.gae_lambda = gae_lambda
         self.chkpt_dir = chkpt_dir
+        
+        fc1 = keras.layers.Dense(256, activation='relu')  # First fully-connected layer
+        fc2 = keras.layers.Dense(256, activation='relu')  # Second fully-connected layer
+        q = keras.layers.Dense(1, activation='softmax')  # Output layer (no activation for Q-value)
+        q2 = keras.layers.Dense(n_actions, activation='softmax')  # Output layer (no activation for Q-value)
 
+        # Combine layers into the model (without creating a class)
+        
+
+        #self.actor = ActorNetwork(n_actions)
+        """
         self.actor = Sequential([
             Dense(fc1_dims, activation='relu'),
             Dense(fc2_dims, activation='relu'),
             Dense(n_actions, activation=None)
         ])
+        """
+        self.actor = tf.keras.Sequential([fc1, fc2, q2])
         self.actor.compile(optimizer=Adam(learning_rate=alpha))
-
+        #self.critic = CriticNetwork(n_actions)
+        """
         self.critic = Sequential([
             Dense(fc1_dims, activation='relu'),
             Dense(fc2_dims, activation='relu'),
             Dense(1, activation=None)
         ])
+        """
+        self.critic = tf.keras.Sequential([fc1, fc2, q])
         self.critic.compile(optimizer=Adam(learning_rate=alpha))
         
         self.memory = Memory(batch_size)
@@ -106,7 +151,7 @@ class PPOAgent:
         return action, log_prob, value
 
     # Función para calcular los retornos descontados
-    def compute_discounted_returns(rewards, gamma=0.99):
+    def compute_discounted_returns(self, rewards, gamma=0.99):
         discounted_returns = np.zeros_like(rewards, dtype=np.float32)
         running_total = 0
         for t in reversed(range(len(rewards))):
@@ -115,25 +160,42 @@ class PPOAgent:
         return discounted_returns
 
     # Función para calcular las ventajas
-    def compute_advantages(discounted_returns, values, next_values, gamma=0.99, lambda_=0.95):
+    def compute_advantages(self, discounted_returns, values, next_values, gamma=0.99, lambda_=0.95):
         deltas = discounted_returns - values
         advantages = np.zeros_like(discounted_returns, dtype=np.float32)
         running_advantage = 0
         for t in reversed(range(len(deltas))):
             running_advantage = deltas[t] + (gamma * lambda_ * running_advantage)
-            advantages[t] = running_advantage
+            advantages[t] = np.array(running_advantage).mean()
         return advantages
 
     def learn(self):
         for _ in range(self.n_epochs):
-            state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_batches()
-
+            state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_data()
+            
+            """
             # Calcular los retornos descontados
-            discounted_returns = compute_discounted_returns(reward_arr, self.gamma)
+            discounted_returns = self.compute_discounted_returns(reward_arr, self.gamma)
             
             # Calcular las ventajas
-            advantage = compute_advantages(discounted_returns, vals_arr, self.gamma, self.gae_lambda)
+            advantage = self.compute_advantages(discounted_returns, vals_arr, self.gamma, self.gae_lambda)
+            
+            """
+            values = vals_arr
+            advantage = np.zeros(len(reward_arr), dtype=np.float32)
 
+            #print("Que pasa con el reward --< ", len(reward_arr))
+            for t in range(len(reward_arr)-1):
+                discount = 1
+                a_t = 0
+                for k in range(t, len(reward_arr)-1):
+                    a_t += discount*(reward_arr[k] + self.gamma*values[k+1] * (
+                        1-int(dones_arr[k])) - values[k])
+                    discount *= self.gamma*self.gae_lambda
+                advantage[t] = a_t
+         
+            #print("\n\n\n AAA --> ", values, reward_arr, dones_arr, advantage, " \n\n\n")
+                
             for batch in batches:
                 with tf.GradientTape(persistent=True) as tape:
                     states = tf.convert_to_tensor(state_arr[batch], dtype=tf.float32)

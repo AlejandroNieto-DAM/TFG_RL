@@ -27,6 +27,7 @@ from nav_msgs.msg import Odometry
 from std_srvs.srv import Empty
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from .respawnGoal import Respawn
+from std_srvs.srv import Empty
 
 class Env():
     def __init__(self, action_size):
@@ -43,6 +44,14 @@ class Env():
         self.unpause_proxy = rospy.ServiceProxy('gazebo/unpause_physics', Empty)
         self.pause_proxy = rospy.ServiceProxy('gazebo/pause_physics', Empty)
         self.respawn_goal = Respawn()
+
+    
+    def pause_simulation(self):
+        self.pause_proxy()
+
+    def unpause_simulation(self):
+        self.unpause_proxy()
+
 
     def getGoalDistace(self):
         goal_distance = round(math.hypot(self.goal_x - self.position.x, self.goal_y - self.position.y), 2)
