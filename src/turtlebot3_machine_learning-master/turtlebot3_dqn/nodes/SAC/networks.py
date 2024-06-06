@@ -9,8 +9,8 @@ import os
 from tensorflow.keras import Model
 
 class Critic(Model):
-    def __init__(self, fc1_dims, fc2_dims)
-        super(CriticNetwork, self).__init__()
+    def __init__(self, fc1_dims, fc2_dims):
+        super(Critic, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
 
@@ -27,8 +27,8 @@ class Critic(Model):
         return q_value
 
 class Actor(Model):
-    def __init__(self, fc1_dims, fc2_dims, n_actions)
-        super(CriticNetwork, self).__init__()
+    def __init__(self, fc1_dims, fc2_dims, n_actions):
+        super(Actor, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.n_actions = n_actions

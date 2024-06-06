@@ -1,35 +1,45 @@
 import numpy as np
 
-class Memory:
-    def __init__(self, batch_size):
-        self.states = []
-        self.actions = []
-        self.rewards = []
-        self.new_states = []
-        self.dones = []
+class ReplayBuffer():
+    def __init__(self, max_size, shape, n_actions):
+        self.mem_size = max_size
+        self.counter = 0
+        self.n_actions = n_actions
 
-        self.batch_size = batch_size
+        self.states = np.zeros((self.mem_size, *shape))
+        self.new_states = np.zeros((self.mem_size, *shape))
 
-    def generate_data(self):
-        indices_muestras = np.arange(len(self.states))
-        np.random.shuffle(indices_muestras)
-        num_batches = int(len(self.states) / self.batch_size)
-        indices_batches = []
+        self.actions = np.zeros((self.mem_size, self.n_actions))
+
+        self.rewards = np.zeros((self.mem_size))
+        self.dones = np.zeros((self.mem_size))
+
         
-        for i_batch in range(num_batches):
-            indices_batches.append(indices_muestras[self.batch_size * i_batch : self.batch_size * i_batch + self.batch_size])
+    def generate_data(self, batch_size):
+        max_mem = min(self.counter, self.mem_size)
 
-        if len(self.states) % self.batch_size != 0:     
-            indices_batches.append(indices_muestras[self.batch_size * (num_batches) : ])
+        batch = np.random.choice(max_mem, batch_size)
 
-        return np.array(self.states), np.array(self.actions), np.array(self.rewards), np.array(self.new_states), np.array(self.dones), indices_batches
+        states = self.states[batch]
+        new_states = self.new_states[batch]
+        actions = self.actions[batch]
+        rewards = self.rewards[batch]
+        dones = self.dones[batch]
 
-    def store_data(self, states, actions, rewards, new_state, done):
-        self.states.append(states)
-        self.actions.append(actions)
-        self.rewards.append(rewards)
-        self.new_states.append(new_state)
-        self.dones.append(done)
+        return states, actions, rewards, states_, dones
+
+
+    def store_data(self, state, action, reward, new_state, done):
+
+        index = self.counter % self.mem_size
+
+        self.states[index] = states
+        self.actions[index] = action
+        self.rewards[index] = reward
+        self.new_states[index] = new_state
+        self.dones[index] = done
+
+        self.mem_cntr += 1
     
     def clear_data(self):
         self.states = []
