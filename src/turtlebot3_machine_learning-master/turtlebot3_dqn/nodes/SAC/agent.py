@@ -37,7 +37,7 @@ class SAC():
 
 
     def store_data(self, state, action, reward, new_state, done):
-        self.memory.store_data(states, actions, rewards, new_state, done)
+        self.memory.store_data(state, action, reward, new_state, done)
 
     def choose_action(self, observation):
         state = tf.convert_to_tensor([observation])
@@ -54,21 +54,21 @@ class SAC():
 
         state_arr, action_arr, reward_arr, new_state_arr, dones_arr, batches = self.memory.generate_data()
 
-        states = tf.convert_to_tensor(state, dtype=tf.float32)
+        states = tf.convert_to_tensor(state_arr, dtype=tf.float32)
         states_ = tf.convert_to_tensor(new_state_arr, dtype=tf.float32)
-        rewards = tf.convert_to_tensor(reward, dtype=tf.float32)
-        actions = tf.convert_to_tensor(action, dtype=tf.float32)
-        done = tf.convert_to_tensor(dones_arr, dtype=tf.float32)
+        rewards = tf.convert_to_tensor(reward_arr, dtype=tf.float32)
+        actions = tf.convert_to_tensor(action_arr, dtype=tf.float32)
+        dones = tf.convert_to_tensor(dones_arr, dtype=tf.float32)
 
         with tf.GradientTape() as tape:
-            next_action, next_log_prob = self.actor(next_state_batch)
-            target_q1_next = self.target_q1(next_state_batch, next_action)
-            target_q2_next = self.target_q2(next_state_batch, next_action)
+            next_action, next_log_prob = self.actor(states_)
+            target_q1_next = self.target_q1(states_, next_action)
+            target_q2_next = self.target_q2(states_, next_action)
             target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
-            y = reward_batch + self.gamma * (1 - done_batch) * tf.squeeze(target_q_min, axis=1)
+            y = rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min, axis=1)
             
-            q1 = self.critic_1(state_batch, action_batch)
-            q2 = self.critic_2(state_batch, action_batch)
+            q1 = self.critic_1(states, action_batch)
+            q2 = self.critic_2(states, action_batch)
             
             critic_1_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q1, axis=1))
             critic_2_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q2, axis=1))
@@ -79,8 +79,8 @@ class SAC():
         self.critic_2.optimizer.apply_gradients(zip(critic_2_grads, self.critic_2.trainable_variables))
         
         with tf.GradientTape() as tape:
-            actions, log_probs = self.actor(state_batch)
-            q1 = self.critic_1(state_batch, actions)
+            actions, log_probs = self.policy(states)
+            q1 = self.critic_1(states, actions)
             actor_loss = tf.reduce_mean(self.alpha * log_probs - tf.squeeze(q1, axis=1))
         
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
