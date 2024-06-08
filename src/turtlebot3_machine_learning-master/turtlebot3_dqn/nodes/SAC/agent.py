@@ -36,7 +36,7 @@ class SAC():
         self.update_target(self.target_q2.variables, self.q2.variables)
 
 
-    def store_data(state, action, reward, new_state, done):
+    def store_data(self, state, action, reward, new_state, done):
         self.memory.store_data(states, actions, rewards, new_state, done)
 
     def choose_action(self, observation):
@@ -70,13 +70,13 @@ class SAC():
             q1 = self.critic_1(state_batch, action_batch)
             q2 = self.critic_2(state_batch, action_batch)
             
-            critic_1_loss = tf.keras.losses.MSE(y, tf.squeeze(q1, axis=1))
-            critic_2_loss = tf.keras.losses.MSE(y, tf.squeeze(q2, axis=1))
+            critic_1_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q1, axis=1))
+            critic_2_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q2, axis=1))
         
         critic_1_grads = tape.gradient(critic_1_loss, self.critic_1.trainable_variables)
         critic_2_grads = tape.gradient(critic_2_loss, self.critic_2.trainable_variables)
-        self.critic_optimizer.apply_gradients(zip(critic_1_grads, self.critic_1.trainable_variables))
-        self.critic_optimizer.apply_gradients(zip(critic_2_grads, self.critic_2.trainable_variables))
+        self.critic_1.optimizer.apply_gradients(zip(critic_1_grads, self.critic_1.trainable_variables))
+        self.critic_2.optimizer.apply_gradients(zip(critic_2_grads, self.critic_2.trainable_variables))
         
         with tf.GradientTape() as tape:
             actions, log_probs = self.actor(state_batch)
@@ -84,7 +84,7 @@ class SAC():
             actor_loss = tf.reduce_mean(self.alpha * log_probs - tf.squeeze(q1, axis=1))
         
         actor_grads = tape.gradient(actor_loss, self.actor.trainable_variables)
-        self.actor_optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
+        self.policy.optimizer.apply_gradients(zip(actor_grads, self.actor.trainable_variables))
         
         self.update_target(self.target_q1.variables, self.q1.variables)
         self.update_target(self.target_q2.variables, self.q2.variables)
