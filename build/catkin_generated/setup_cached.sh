@@ -7,9 +7,4 @@
 # new environment variables
 
 # modified environment variables
-export CMAKE_PREFIX_PATH="/home/nietoff/tfg/devel:$CMAKE_PREFIX_PATH"
-export LD_LIBRARY_PATH="/home/nietoff/tfg/devel/lib:$LD_LIBRARY_PATH"
 export PWD='/home/nietoff/tfg/build'
-export PYTHONPATH="/home/nietoff/tfg/devel/lib/python3/dist-packages:$PYTHONPATH"
-export ROSLISP_PACKAGE_DIRECTORIES="/home/nietoff/tfg/devel/share/common-lisp:$ROSLISP_PACKAGE_DIRECTORIES"
-export ROS_PACKAGE_PATH="/home/nietoff/tfg/src:$ROS_PACKAGE_PATH"

@@ -1,6 +1,7 @@
 <?xml version="1.0" ?>
 <sdf version="1.5">
   <model name="turtlebot3_burger">  
+
     <link name="base">
       <inertial>
         <pose>-0.032 0 0.070 0 0 0</pose>

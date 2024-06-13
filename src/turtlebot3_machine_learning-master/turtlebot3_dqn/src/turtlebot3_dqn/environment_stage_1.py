@@ -22,12 +22,13 @@ import numpy as np
 import math
 from math import pi
 from geometry_msgs.msg import Twist, Point, Pose
-from sensor_msgs.msg import LaserScan
+from sensor_msgs.msg import LaserScan, Image
 from nav_msgs.msg import Odometry
 from std_srvs.srv import Empty
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from .respawnGoal import Respawn
 from std_srvs.srv import Empty
+import cv2
 
 class Env():
     def __init__(self, action_size):
@@ -41,11 +42,32 @@ class Env():
         self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
         self.sub_odom = rospy.Subscriber('odom', Odometry, self.getOdometry)
         self.reset_proxy = rospy.ServiceProxy('gazebo/reset_simulation', Empty)
+        
         self.unpause_proxy = rospy.ServiceProxy('gazebo/unpause_physics', Empty)
         self.pause_proxy = rospy.ServiceProxy('gazebo/pause_physics', Empty)
         self.respawn_goal = Respawn()
 
-    
+        camera_topic = "/camera/image"
+
+        # Subscribe to camera topic with callback function
+        self.image_sub = rospy.Subscriber(camera_topic, Image, self.image_callback)
+
+
+    def image_callback(self, data):
+        # Extract image data from message (replace with your specific logic)
+        image_data = data.data
+
+        # Convert the data to a NumPy array (assuming uint8 encoding)
+        image_arr = np.frombuffer(image_data, dtype=np.uint8)
+
+        # Reshape the array based on the image width and height from the message (if available)
+        image_arr = image_arr.reshape((data.height, data.width, -1))  # Assuming RGB format
+
+        # Convert the NumPy array to OpenCV image (BGR format as desired)
+        image_cv2 = cv2.cvtColor(image_arr, cv2.COLOR_RGB2BGR)
+        # Save the image
+        cv2.imwrite("captured_image_{timestamp}.png".format(timestamp=rospy.Time.now()), image_cv2)
+
     def pause_simulation(self):
         self.pause_proxy()
 
