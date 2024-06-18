@@ -29,6 +29,10 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from .respawnGoal import Respawn
 from std_srvs.srv import Empty
 import cv2
+from cv_bridge import CvBridge, CvBridgeError
+import os
+
+bridge = CvBridge()
 
 class Env():
     def __init__(self, action_size):
@@ -47,26 +51,44 @@ class Env():
         self.pause_proxy = rospy.ServiceProxy('gazebo/pause_physics', Empty)
         self.respawn_goal = Respawn()
 
-        camera_topic = "/camera/image"
+        self.camera_topic = "/camera/image"
 
         # Subscribe to camera topic with callback function
-        self.image_sub = rospy.Subscriber(camera_topic, Image, self.image_callback)
+        rospy.Subscriber(self.camera_topic, Image, self.image_callback)
+
+        self._check_front_camera_rgb_image_raw_ready()
 
 
+    def _check_front_camera_rgb_image_raw_ready(self):
+        self.front_camera_rgb_image_raw = None
+        rospy.loginfo("Waiting for " + self.camera_topic + " to be READY...")
+        while self.front_camera_rgb_image_raw is None and not rospy.is_shutdown():
+            try:
+                self.front_camera_rgb_image_raw = rospy.wait_for_message(self.camera_topic, Image, timeout=5.0)
+                rospy.loginfo("Current " + self.camera_topic + " READY=>")
+
+            except:
+                rospy.loginfo("Current " + self.camera_topic + " not ready yet, retrying for getting front_camera_rgb_image_raw")
+        
     def image_callback(self, data):
         # Extract image data from message (replace with your specific logic)
-        image_data = data.data
+        
 
-        # Convert the data to a NumPy array (assuming uint8 encoding)
-        image_arr = np.frombuffer(image_data, dtype=np.uint8)
+        #self.front_camera_rgb_image_raw = data
+        #rospy.loginfo("Tamos working " + os.getcwd())
+        # Path donde se estan guardando home/nietoff/.ros
+        self.front_camera_rgb_image_raw = data
 
-        # Reshape the array based on the image width and height from the message (if available)
-        image_arr = image_arr.reshape((data.height, data.width, -1))  # Assuming RGB format
+        try:
+            # Convert your ROS Image message to OpenCV2
+            cv2_img = bridge.imgmsg_to_cv2(self.front_camera_rgb_image_raw, "bgr8")
+        except CvBridgeError as e:
+            rospy.loginfo("MIRA LA EXCEPTION -- " + e)
+        else:
+            cv2.imwrite("images/captured_image_{timestamp}.png".format(timestamp=rospy.Time.now()), cv2_img)
 
-        # Convert the NumPy array to OpenCV image (BGR format as desired)
-        image_cv2 = cv2.cvtColor(image_arr, cv2.COLOR_RGB2BGR)
-        # Save the image
-        cv2.imwrite("captured_image_{timestamp}.png".format(timestamp=rospy.Time.now()), image_cv2)
+            #cv2.imshow("Mira la imagen", cv2_img) 
+            cv2.waitKey(1)
 
     def pause_simulation(self):
         self.pause_proxy()
