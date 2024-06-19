@@ -1286,6 +1286,19 @@ actionlib_msgs_generate_messages_lisp/fast:
 .PHONY : actionlib_msgs_generate_messages_lisp/fast
 
 #=============================================================================
+# Target rules for targets named RotatePlugin
+
+# Build rule for target.
+RotatePlugin: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 RotatePlugin
+.PHONY : RotatePlugin
+
+# fast build rule for target.
+RotatePlugin/fast:
+	$(MAKE) -f turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/build.make turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/build
+.PHONY : RotatePlugin/fast
+
+#=============================================================================
 # Target rules for targets named trajectory_msgs_generate_messages_py
 
 # Build rule for target.
@@ -1605,6 +1618,7 @@ help:
 	@echo "... actionlib_msgs_generate_messages_cpp"
 	@echo "... nav_msgs_generate_messages_eus"
 	@echo "... actionlib_msgs_generate_messages_lisp"
+	@echo "... RotatePlugin"
 	@echo "... trajectory_msgs_generate_messages_py"
 	@echo "... trajectory_msgs_generate_messages_lisp"
 	@echo "... gazebo_ros_gencfg"

@@ -32,7 +32,7 @@ from std_srvs.srv import Empty
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
 import os
-
+from std_msgs.msg import String
 bridge = CvBridge()
 
 class Env():
@@ -63,6 +63,7 @@ class Env():
 
         self.respawn_goal = Respawn()
         self.respawn_coin = RespawnCoin()
+        
 
         self.camera_topic = "/camera/image"
 
@@ -163,7 +164,7 @@ class Env():
 
         current_distance_coin = round(math.hypot(self.coin_x - self.position.x, self.coin_y - self.position.y),2)
         if current_distance_coin < 0.2:
-            self.get_coin = True
+           self.get_coin = True
         
         rospy.loginfo("Salimos de getState!!")
 
@@ -201,9 +202,7 @@ class Env():
             rospy.loginfo("Coin!!")
             reward = 50
             self.pub_cmd_vel.publish(Twist())
-            #self.coin_x, self.coin_y = self.respawn_coin.getPosition(True, delete=True)
-            #self.coin_distance = self.getCoinDistace()
-            #self.get_coin = False
+
 
         return reward
 
@@ -229,7 +228,9 @@ class Env():
         return np.asarray(state), reward, done
 
     def reset(self):
-        rospy.loginfo("Entramos a reset!!")
+        # TODO Wait por la thread de la coin si fue inicializada podemos usar initCoin
+
+        #rospy.loginfo("Entramos a reset!!")
         rospy.wait_for_service('gazebo/reset_simulation')
         try:
             self.reset_proxy()
@@ -249,6 +250,7 @@ class Env():
 
         if self.initCoin:
             self.coin_x, self.coin_y = self.respawn_coin.getPosition(True, False)
+            self.respawn_coin.start_spin_move_thread()
             self.initCoin = False
 
         self.goal_distance = self.getGoalDistace()
@@ -256,6 +258,9 @@ class Env():
 
         state, done = self.getState(data)
         
-        rospy.loginfo("Salimos a reset!!")
+        #rospy.loginfo("Salimos a reset!!")
+
+        #self.respawn_coin.spin_thread.stop()
+        #self.respawn_coin.spin_thread.join()
 
         return np.asarray(state)

@@ -27,17 +27,32 @@ from nav_msgs.msg import Odometry
 from std_srvs.srv import Empty
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from .respawnGoal import Respawn
+from .respawnCoins import RespawnCoin
 from std_srvs.srv import Empty
 import cv2
+from cv_bridge import CvBridge, CvBridgeError
+import os
+from std_msgs.msg import String
+bridge = CvBridge()
 
 class Env():
     def __init__(self, action_size):
+
         self.goal_x = 0
         self.goal_y = 0
+
+        self.coin_x = 0
+        self.coin_y = 0
+
         self.heading = 0
         self.action_size = action_size
+
         self.initGoal = True
+        self.initCoin = True
+
         self.get_goalbox = False
+        self.get_coin = False
+
         self.position = Pose()
         self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
         self.sub_odom = rospy.Subscriber('odom', Odometry, self.getOdometry)
@@ -45,28 +60,50 @@ class Env():
         
         self.unpause_proxy = rospy.ServiceProxy('gazebo/unpause_physics', Empty)
         self.pause_proxy = rospy.ServiceProxy('gazebo/pause_physics', Empty)
-        self.respawn_goal = Respawn()
 
-        camera_topic = "/turtlebot3/front_camera/image_raw"
+        self.position_coins_publisher =  rospy.Publisher('coin_pose', String, queue_size=5)
+
+        self.respawn_goal = Respawn()
+        self.respawn_coin = RespawnCoin()
+
+        self.camera_topic = "/camera/image"
 
         # Subscribe to camera topic with callback function
-        self.image_sub = rospy.Subscriber(camera_topic, Image, self.image_callback)
+        rospy.Subscriber(self.camera_topic, Image, self.image_callback)
+
+        #self._check_front_camera_rgb_image_raw_ready()
 
 
+    def _check_front_camera_rgb_image_raw_ready(self):
+        self.front_camera_rgb_image_raw = None
+        rospy.loginfo("Waiting for " + self.camera_topic + " to be READY...")
+        while self.front_camera_rgb_image_raw is None and not rospy.is_shutdown():
+            try:
+                self.front_camera_rgb_image_raw = rospy.wait_for_message(self.camera_topic, Image, timeout=5.0)
+                rospy.loginfo("Current " + self.camera_topic + " READY=>")
+
+            except:
+                rospy.loginfo("Current " + self.camera_topic + " not ready yet, retrying for getting front_camera_rgb_image_raw")
+        
     def image_callback(self, data):
         # Extract image data from message (replace with your specific logic)
-        image_data = data.data
+        
 
-        # Convert the data to a NumPy array (assuming uint8 encoding)
-        image_arr = np.frombuffer(image_data, dtype=np.uint8)
+        #self.front_camera_rgb_image_raw = data
+        #rospy.loginfo("Tamos working " + os.getcwd())
+        # Path donde se estan guardando home/nietoff/.ros
+        self.front_camera_rgb_image_raw = data
 
-        # Reshape the array based on the image width and height from the message (if available)
-        image_arr = image_arr.reshape((data.height, data.width, -1))  # Assuming RGB format
+        try:
+            # Convert your ROS Image message to OpenCV2
+            cv2_img = bridge.imgmsg_to_cv2(self.front_camera_rgb_image_raw, "bgr8")
+        except CvBridgeError as e:
+            rospy.loginfo("MIRA LA EXCEPTION -- " + e)
+        else:
+            cv2.imwrite("images/captured_image_{timestamp}.png".format(timestamp=rospy.Time.now()), cv2_img)
 
-        # Convert the NumPy array to OpenCV image (BGR format as desired)
-        image_cv2 = cv2.cvtColor(image_arr, cv2.COLOR_RGB2BGR)
-        # Save the image
-        cv2.imwrite("captured_image_{timestamp}.png".format(timestamp=rospy.Time.now()), image_cv2)
+            #cv2.imshow("Mira la imagen", cv2_img) 
+            cv2.waitKey(1)
 
     def pause_simulation(self):
         self.pause_proxy()
@@ -79,6 +116,11 @@ class Env():
         goal_distance = round(math.hypot(self.goal_x - self.position.x, self.goal_y - self.position.y), 2)
 
         return goal_distance
+
+    def getCoinDistace(self):
+        coin_distance = round(math.hypot(self.coin_x - self.position.x, self.coin_y - self.position.y), 2)
+
+        return coin_distance
 
     def getOdometry(self, odom):
         self.position = odom.pose.pose.position
@@ -98,6 +140,9 @@ class Env():
         self.heading = round(heading, 2)
 
     def getState(self, scan):
+
+        rospy.loginfo("Entramos a getState!!")
+
         scan_range = []
         heading = self.heading
         min_range = 0.13
@@ -117,6 +162,12 @@ class Env():
         current_distance = round(math.hypot(self.goal_x - self.position.x, self.goal_y - self.position.y),2)
         if current_distance < 0.2:
             self.get_goalbox = True
+
+        current_distance_coin = round(math.hypot(self.coin_x - self.position.x, self.coin_y - self.position.y),2)
+        if current_distance_coin < 0.2:
+            self.get_coin = True
+        
+        rospy.loginfo("Salimos de getState!!")
 
         return scan_range + [heading, current_distance], done
 
@@ -141,10 +192,20 @@ class Env():
         if self.get_goalbox:
             rospy.loginfo("Goal!!")
             reward = 200
+            if self.get_coin: 
+                reward *= 2
             self.pub_cmd_vel.publish(Twist())
             self.goal_x, self.goal_y = self.respawn_goal.getPosition(True, delete=True)
             self.goal_distance = self.getGoalDistace()
             self.get_goalbox = False
+
+        if self.get_coin:
+            rospy.loginfo("Coin!!")
+            reward = 50
+            self.pub_cmd_vel.publish(Twist())
+            #self.coin_x, self.coin_y = self.respawn_coin.getPosition(True, delete=True)
+            #self.coin_distance = self.getCoinDistace()
+            #self.get_coin = False
 
         return reward
 
@@ -167,9 +228,15 @@ class Env():
         state, done = self.getState(data)
         reward = self.setReward(state, done, action)
 
+
+        msg = String()
+        msg.data = "gira"
+        self.position_coins_publisher.publish(msg)
+
         return np.asarray(state), reward, done
 
     def reset(self):
+        rospy.loginfo("Entramos a reset!!")
         rospy.wait_for_service('gazebo/reset_simulation')
         try:
             self.reset_proxy()
@@ -187,7 +254,15 @@ class Env():
             self.goal_x, self.goal_y = self.respawn_goal.getPosition()
             self.initGoal = False
 
+        if self.initCoin:
+            self.coin_x, self.coin_y = self.respawn_coin.getPosition(True, False)
+            self.initCoin = False
+
         self.goal_distance = self.getGoalDistace()
+        self.coin_distance = self.getCoinDistace()
+
         state, done = self.getState(data)
+        
+        rospy.loginfo("Salimos a reset!!")
 
         return np.asarray(state)

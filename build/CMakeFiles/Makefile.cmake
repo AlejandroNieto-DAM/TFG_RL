@@ -598,6 +598,7 @@ set(CMAKE_DEPEND_INFO_FILES
   "turtlebot3_simulations-master/turtlebot3_fake/CMakeFiles/actionlib_msgs_generate_messages_cpp.dir/DependInfo.cmake"
   "turtlebot3_simulations-master/turtlebot3_fake/CMakeFiles/nav_msgs_generate_messages_eus.dir/DependInfo.cmake"
   "turtlebot3_simulations-master/turtlebot3_fake/CMakeFiles/actionlib_msgs_generate_messages_lisp.dir/DependInfo.cmake"
+  "turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/DependInfo.cmake"
   "turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/trajectory_msgs_generate_messages_py.dir/DependInfo.cmake"
   "turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/trajectory_msgs_generate_messages_lisp.dir/DependInfo.cmake"
   "turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/gazebo_ros_gencfg.dir/DependInfo.cmake"

@@ -168,6 +168,21 @@ depend:
 .PHONY : depend
 
 # Convenience name for target.
+turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/rule:
+	cd /home/nietoff/tfg/build && $(MAKE) -f CMakeFiles/Makefile2 turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/rule
+.PHONY : turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/rule
+
+# Convenience name for target.
+RotatePlugin: turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/rule
+
+.PHONY : RotatePlugin
+
+# fast build rule for target.
+RotatePlugin/fast:
+	cd /home/nietoff/tfg/build && $(MAKE) -f turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/build.make turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/build
+.PHONY : RotatePlugin/fast
+
+# Convenience name for target.
 turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/trajectory_msgs_generate_messages_py.dir/rule:
 	cd /home/nietoff/tfg/build && $(MAKE) -f CMakeFiles/Makefile2 turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/trajectory_msgs_generate_messages_py.dir/rule
 .PHONY : turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/trajectory_msgs_generate_messages_py.dir/rule
@@ -422,6 +437,33 @@ trajectory_msgs_generate_messages_cpp/fast:
 	cd /home/nietoff/tfg/build && $(MAKE) -f turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/trajectory_msgs_generate_messages_cpp.dir/build.make turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/trajectory_msgs_generate_messages_cpp.dir/build
 .PHONY : trajectory_msgs_generate_messages_cpp/fast
 
+src/RotatePlugin.o: src/RotatePlugin.cpp.o
+
+.PHONY : src/RotatePlugin.o
+
+# target to build an object file
+src/RotatePlugin.cpp.o:
+	cd /home/nietoff/tfg/build && $(MAKE) -f turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/build.make turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/src/RotatePlugin.cpp.o
+.PHONY : src/RotatePlugin.cpp.o
+
+src/RotatePlugin.i: src/RotatePlugin.cpp.i
+
+.PHONY : src/RotatePlugin.i
+
+# target to preprocess a source file
+src/RotatePlugin.cpp.i:
+	cd /home/nietoff/tfg/build && $(MAKE) -f turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/build.make turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/src/RotatePlugin.cpp.i
+.PHONY : src/RotatePlugin.cpp.i
+
+src/RotatePlugin.s: src/RotatePlugin.cpp.s
+
+.PHONY : src/RotatePlugin.s
+
+# target to generate assembly for a file
+src/RotatePlugin.cpp.s:
+	cd /home/nietoff/tfg/build && $(MAKE) -f turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/build.make turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir/src/RotatePlugin.cpp.s
+.PHONY : src/RotatePlugin.cpp.s
+
 src/turtlebot3_drive.o: src/turtlebot3_drive.cpp.o
 
 .PHONY : src/turtlebot3_drive.o
@@ -457,6 +499,7 @@ help:
 	@echo "... depend"
 	@echo "... install/local"
 	@echo "... install"
+	@echo "... RotatePlugin"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
 	@echo "... trajectory_msgs_generate_messages_py"
@@ -479,6 +522,9 @@ help:
 	@echo "... gazebo_msgs_generate_messages_nodejs"
 	@echo "... gazebo_msgs_generate_messages_eus"
 	@echo "... trajectory_msgs_generate_messages_cpp"
+	@echo "... src/RotatePlugin.o"
+	@echo "... src/RotatePlugin.i"
+	@echo "... src/RotatePlugin.s"
 	@echo "... src/turtlebot3_drive.o"
 	@echo "... src/turtlebot3_drive.i"
 	@echo "... src/turtlebot3_drive.s"

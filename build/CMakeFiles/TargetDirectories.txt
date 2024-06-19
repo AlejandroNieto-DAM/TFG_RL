@@ -184,6 +184,7 @@
 /home/nietoff/tfg/build/turtlebot3_simulations-master/turtlebot3_fake/CMakeFiles/actionlib_msgs_generate_messages_lisp.dir
 /home/nietoff/tfg/build/turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/install/local.dir
 /home/nietoff/tfg/build/turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/install.dir
+/home/nietoff/tfg/build/turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/RotatePlugin.dir
 /home/nietoff/tfg/build/turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/rebuild_cache.dir
 /home/nietoff/tfg/build/turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/edit_cache.dir
 /home/nietoff/tfg/build/turtlebot3_simulations-master/turtlebot3_gazebo/CMakeFiles/trajectory_msgs_generate_messages_py.dir
