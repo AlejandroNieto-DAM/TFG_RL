@@ -38,7 +38,7 @@ bridge = CvBridge()
 class Env():
     def __init__(self, action_size):
 
-        self.number_total_coins = 8
+        self.number_total_coins = 1
 
         self.goal_x = 0
         self.goal_y = 0
@@ -143,7 +143,7 @@ class Env():
 
     def getState(self, scan):
 
-        rospy.loginfo("Entramos a getState!!")
+        #rospy.loginfo("Entramos a getState!!")
 
         scan_range = []
         heading = self.heading
@@ -173,12 +173,11 @@ class Env():
         
         #rospy.loginfo("Salimos de getState!!")
 
-        # TODO Hay que añadir a la observacion las distancias a las monedas
-        return scan_range + [heading, current_distance], done
+        return scan_range + [heading, current_distance] + self.coins_distance.tolist(), done
 
     def _get_coins_distances(self):
         for i in range(self.number_total_coins):
-            self.coins_distance[i] = self.coins[0].getCoinDistace(self.position.x, self.position.y)
+            self.coins_distance[i] = self.coins[i].getCoinDistace(self.position.x, self.position.y)
     
 
     def setReward(self, state, done, action):
@@ -199,30 +198,34 @@ class Env():
             reward = -200
             self.pub_cmd_vel.publish(Twist())
 
+        #rospy.loginfo("MIRA A VER CUANTOS HAY " + str(self.picked_coins[0]) + " " + str(self.picked_coins_older_value[0]))
+        for i in range(self.number_total_coins):
+            # With this if we want to avoid constantly saying that we picked a coin
+            # when we did that in another step but it keeps saying that we picked it
+            if self.picked_coins[i] == 1 and self.picked_coins_older_value[i] == 0:
+                rospy.loginfo("\n\n\n\nCoin!!\n\n\n")
+                reward = 50
+                self.picked_coins_older_value[i] = 1
+                self.coins[i].deleteModel()
+                self.pub_cmd_vel.publish(Twist())
+        
         if self.get_goalbox:
             rospy.loginfo("Goal!!")
             reward = 200
-            if self.get_coin: 
-                reward *= np.array(self.picked_coins).sum()
+            # With +1 we want to make sure if the robot didnt pick any coin
+            # the reward to be 0
+            reward *= np.array(self.picked_coins).sum() + 1
             self.pub_cmd_vel.publish(Twist())
             self.goal_x, self.goal_y = self.respawn_goal.getPosition(True, delete=True)
             self.goal_distance = self.getGoalDistace()
             self.get_goalbox = False
-        else:
-            for i in range(self.number_total_coins):
-                # With this if we want to avoid constantly saying that we picked a coin
-                # when we did that in another step but it keeps saying that we picked it
-                if self.picked_coins[i] == 1 and self.picked_coins[i] != self.picked_coins_older_value[i]:
-                    rospy.loginfo("Coin!!")
-                    reward = 50
-                    self.picked_coins_older_value[i] = self.picked_coins
-                    self.pub_cmd_vel.publish(Twist())
-        
-
 
         return reward
 
     def step(self, action):
+
+        #rospy.loginfo("NTRAMOS  del step?")
+
         max_angular_vel = 1.5
         ang_vel = ((self.action_size - 1)/2 - action) * max_angular_vel * 0.5
 
@@ -241,13 +244,16 @@ class Env():
         state, done = self.getState(data)
         reward = self.setReward(state, done, action)
 
+        #rospy.loginfo("Salimos del step?")
+
         return np.asarray(state), reward, done
 
     def reset(self):
         # Wait for the threads of the initialized coins
         for i in range(self.number_total_coins):
             if self.init_coins[i] == 0:
-                self.coins[i].spin_thread.join()
+                pass
+                #self.coins[i].spin_thread.join()
 
         #rospy.loginfo("Entramos a reset!!")
         rospy.wait_for_service('gazebo/reset_simulation')
@@ -270,7 +276,7 @@ class Env():
         for i in range(self.number_total_coins):
             if self.init_coins[i] == 1:
                 self.coins[i].getPosition(True, False)
-                self.coins[i].start_spin_move_thread()
+                #self.coins[i].start_spin_move_thread()
                 self.init_coins[i] = 0
 
         self.goal_distance = self.getGoalDistace()
@@ -278,7 +284,8 @@ class Env():
         self._get_coins_distances()
         # We need to reset also if we picked or not the coins, when we do a reset
         # its clear that we didnt pick any coin 
-        self.picked_coins = self.picked_coins_older_value = np.zeros(self.number_total_coins)
+        self.picked_coins = np.zeros(self.number_total_coins)
+        self.picked_coins_older_value = np.zeros(self.number_total_coins)
 
         state, done = self.getState(data)
         

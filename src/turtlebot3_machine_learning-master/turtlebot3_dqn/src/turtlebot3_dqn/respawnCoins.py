@@ -50,7 +50,8 @@ class RespawnCoin():
         self.coin_position.position.z = self.init_coin_z
         #self.coin_position.orientation.y = 1.57
 
-        self.modelName = 'coin_' + str(id)
+        self.id = str(id)
+        self.modelName = 'coin_' + self.id
         self.obstacle_1 = 0.6, 0.6
         self.obstacle_2 = 0.6, -0.6
         self.obstacle_3 = -0.6, 0.6
@@ -78,7 +79,7 @@ class RespawnCoin():
                 angle -= 2 * math.pi
 
             model_state = ModelState()
-            model_state.model_name = 'coin'
+            model_state.model_name = self.modelName
             model_state.pose.position.x = self.coin_position.position.x if self.coin_position else 0.0
             model_state.pose.position.y = self.coin_position.position.y if self.coin_position else 0.0
             model_state.pose.position.z = self.coin_position.position.z if self.coin_position else 0.0
@@ -103,7 +104,7 @@ class RespawnCoin():
     def checkModel(self, model):
         self.check_model = False
         for i in range(len(model.name)):
-            if model.name[i] == "coin":
+            if model.name[i] == "coin_" + self.id:
                 self.check_model = True
 
     def respawnModel(self):
@@ -172,14 +173,17 @@ class RespawnCoin():
                 self.coin_position.position.y = coin_y_list[self.index]
 
         time.sleep(0.5)
+
         self.respawnModel()
 
         self.last_coin_x = self.coin_position.position.x
         self.last_coin_y = self.coin_position.position.y
+
 
         return self.coin_position.position.x, self.coin_position.position.y
 
     def getCoinDistace(self, robot_x, robot_y):
         coin_distance = round(math.hypot(self.coin_position.position.x - robot_x, self.coin_position.position.y - robot_y), 2)
 
+        #rospy.loginfo("Mi distancia siendo {} es {}".format(self.modelName, coin_distance))
         return coin_distance
