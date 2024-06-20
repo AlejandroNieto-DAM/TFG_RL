@@ -33,7 +33,7 @@ import time
 from threading import Thread
 
 class RespawnCoin():
-    def __init__(self):
+    def __init__(self, id):
         
         self.modelPath = "/home/nietoff/tfg/src/turtlebot3_simulations-master/turtlebot3_gazebo/models/turtlebot3_coin/coin/model.sdf"
 
@@ -50,7 +50,7 @@ class RespawnCoin():
         self.coin_position.position.z = self.init_coin_z
         #self.coin_position.orientation.y = 1.57
 
-        self.modelName = 'coin'
+        self.modelName = 'coin_' + str(id)
         self.obstacle_1 = 0.6, 0.6
         self.obstacle_2 = 0.6, -0.6
         self.obstacle_3 = -0.6, 0.6
@@ -178,3 +178,8 @@ class RespawnCoin():
         self.last_coin_y = self.coin_position.position.y
 
         return self.coin_position.position.x, self.coin_position.position.y
+
+    def getCoinDistace(self, robot_x, robot_y):
+        coin_distance = round(math.hypot(self.coin_position.position.x - robot_x, self.coin_position.position.y - robot_y), 2)
+
+        return coin_distance
