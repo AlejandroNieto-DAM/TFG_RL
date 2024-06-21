@@ -252,8 +252,7 @@ class Env():
         # Wait for the threads of the initialized coins
         for i in range(self.number_total_coins):
             if self.init_coins[i] == 0:
-                pass
-                #self.coins[i].spin_thread.join()
+                self.coins[i].stop_spin_move_thread()
 
         #rospy.loginfo("Entramos a reset!!")
         rospy.wait_for_service('gazebo/reset_simulation')
@@ -276,7 +275,7 @@ class Env():
         for i in range(self.number_total_coins):
             if self.init_coins[i] == 1:
                 self.coins[i].getPosition(True, False)
-                #self.coins[i].start_spin_move_thread()
+                self.coins[i].start_spin_move_thread()
                 self.init_coins[i] = 0
 
         self.goal_distance = self.getGoalDistace()

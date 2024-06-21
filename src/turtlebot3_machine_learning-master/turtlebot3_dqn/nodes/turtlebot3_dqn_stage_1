@@ -127,7 +127,7 @@ def body_ppo_agent():
         score = 0
         for t in range(6000):
             action, prob, val = agent.choose_action(state)
-            
+            action = 2
             state_, reward, done = env.step(action)
 
             n_steps += 1

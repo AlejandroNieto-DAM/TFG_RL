@@ -30,7 +30,7 @@ from std_msgs.msg import String
 from gazebo_msgs.srv import SetModelState
 import math
 import time
-from threading import Thread
+from threading import Thread, Event
 
 class RespawnCoin():
     def __init__(self, id):
@@ -64,6 +64,8 @@ class RespawnCoin():
         self.check_model = False
         self.index = 0
 
+        self.stop_event = Event()
+
         
 
     def spin_move(self):
@@ -73,7 +75,7 @@ class RespawnCoin():
 
         
         angle = 0
-        while not rospy.is_shutdown():
+        while not rospy.is_shutdown() and not self.stop_event.is_set():
             angle += 0.01
             if angle > 2 * math.pi:
                 angle -= 2 * math.pi
@@ -100,6 +102,9 @@ class RespawnCoin():
         spin_thread = Thread(target=self.spin_move)
         spin_thread.start()
         self.spin_thread = spin_thread
+
+    def stop_spin_move_thread(self):
+        self.stop_event.set()
 
     def checkModel(self, model):
         self.check_model = False
@@ -173,6 +178,9 @@ class RespawnCoin():
                 self.coin_position.position.y = coin_y_list[self.index]
 
         time.sleep(0.5)
+
+        self.coin_position.position.x = 0.6
+        self.coin_position.position.y = 0.0
 
         self.respawnModel()
 
