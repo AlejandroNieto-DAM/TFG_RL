@@ -1,0 +1,7 @@
+<launch>
+  <param name="number_of_coins" value="$(env COINS)"/>
+  <param name="using_camera" value="$(env USING_CAMERA)"/>
+  <arg name="stage" default="2"/>
+  <param name="stage_number"  value="$(arg stage)"/>
+  <node pkg="turtlebot3_dqn" type="turtlebot3_dqn_stage_1" name="turtlebot3_dqn_stage_1" output="screen" />
+</launch>
