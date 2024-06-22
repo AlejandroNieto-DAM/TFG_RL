@@ -133,7 +133,7 @@ def body_ppo_agent():
         score = 0
         for t in range(6000):
             action, prob, val = agent.choose_action(state)
-            action = 2
+
             state_, reward, done = env.step(action)
 
             n_steps += 1
@@ -178,43 +178,52 @@ def body_ppo_agent():
                 break
 
 def body_sac_agent():
+
+    number_of_coins = rospy.get_param("number_of_coins", 0)
+    using_camera = rospy.get_param("using_camera", 0)
+
+
     rospy.init_node('turtlebot3_dqn_stage_1')
     pub_result = rospy.Publisher('result', Float32MultiArray, queue_size=5)
     pub_get_action = rospy.Publisher('get_action', Float32MultiArray, queue_size=5)
     result = Float32MultiArray()
     get_action = Float32MultiArray()
 
-    state_size = 362
+    # 360 is the size of LIDAR (360 lasers) we add 2 values of angle and distance to goal
+    # the other 2 values are the angle and distance of the closer obstacle and we will add also
+    # the distance to each coin so we add the number of coins
+    state_size = 360 + 2 + 2 + number_of_coins
+
     action_size = 5
-    N = 100
+    N = 35
     n_steps = 0
     learn_iters = 0
     score_history = []
     best_score = 200
     target_update = 2000
-    env = Env(action_size)
+    env = Env(action_size, using_camera, number_of_coins)
 
-    agent = SAC()
+    agent = SAC(input_dims = [state_size])
 
-                    
-                        
+                          
     scores, episodes = [], []
     global_step = 0
     start_time = time.time()
+
+    #agent.load_models()
 
     for e in range(EPISODES):
         done = False
         state = env.reset()
         score = 0
         for t in range(6000):
-            action, prob, val = agent.choose_action(state)
-
+            action = agent.choose_action(state)
+            #rospy.loginfo("Que ha pasao " + str(action))
             state_, reward, done = env.step(action)
 
             n_steps += 1
 
-            agent.store_transition(state, action,
-                                   prob, val, reward, done)
+            agent.store_data(state, action, reward, state_, done)
 
             if n_steps % N == 0:
                 env.pause_simulation()
@@ -225,7 +234,9 @@ def body_sac_agent():
             state = state_
             score += reward
 
-            rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
+            rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
+
+            agent.save_models()
 
 
             if t >= 500:
@@ -253,5 +264,5 @@ def body_sac_agent():
                 break
 
 if __name__ == '__main__':
-    body_ppo_agent()
+    body_sac_agent()
     #body_dqn()

@@ -160,10 +160,9 @@ class Env():
     def setReward(self, state, done, action):
         # TODO Podemos cambiar la heurística de la formula
         # para incentivar el estar cerca de las monedas (ahora mismo no se hace nada)
-
         yaw_reward = []
-        current_distance = state[-1]
-        heading = state[-2]
+        current_distance = state[-3]
+        heading = state[-4]
 
         for i in range(5):
             angle = -pi / 4 + heading + (pi / 8 * i) + pi / 2

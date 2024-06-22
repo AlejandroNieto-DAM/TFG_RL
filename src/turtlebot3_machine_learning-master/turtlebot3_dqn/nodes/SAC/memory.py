@@ -26,20 +26,20 @@ class ReplayBuffer():
         rewards = self.rewards[batch]
         dones = self.dones[batch]
 
-        return states, actions, rewards, states_, dones
+        return states, actions, rewards, new_states, dones
 
 
     def store_data(self, state, action, reward, new_state, done):
 
         index = self.counter % self.mem_size
 
-        self.states[index] = states
+        self.states[index] = state
         self.actions[index] = action
         self.rewards[index] = reward
         self.new_states[index] = new_state
         self.dones[index] = done
 
-        self.mem_cntr += 1
+        self.counter += 1
     
     def clear_data(self):
         self.states = []

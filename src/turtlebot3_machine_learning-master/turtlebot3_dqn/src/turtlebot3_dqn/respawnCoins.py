@@ -178,10 +178,7 @@ class RespawnCoin():
                 self.coin_position.position.y = coin_y_list[self.index]
 
         time.sleep(0.5)
-
-        self.coin_position.position.x = 0.6
-        self.coin_position.position.y = 0.0
-
+        
         self.respawnModel()
 
         self.last_coin_x = self.coin_position.position.x
