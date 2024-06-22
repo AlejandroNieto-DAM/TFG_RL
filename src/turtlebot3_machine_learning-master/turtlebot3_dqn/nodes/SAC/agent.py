@@ -80,41 +80,48 @@ class SAC():
 
         # Need to have two tapes to update the nets
         with tf.GradientTape() as tape:
+            q1 = self.q1(states, actions)
+
             next_action, next_log_prob = self.policy(states_)
+
             target_q1_next = self.target_q1(states_, next_action)
             target_q2_next = self.target_q2(states_, next_action)
+
             target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
-            y = rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min, axis=1)
-            
-            q1 = self.q1(states, actions)
+            y = tf.stop_gradient(rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min, axis=1))
             
             critic_1_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q1, axis=1))
+        
+
+        with tf.GradientTape() as tape2:
+            q2 = self.q2(states, actions)
+
+            next_action, next_log_prob = self.policy(states_)
+
+            target_q1_next = self.target_q1(states_, next_action)
+            target_q2_next = self.target_q2(states_, next_action)
+
+            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
+            y = tf.stop_gradient(rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min, axis=1))
+
+            critic_2_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q2, axis=1))
         
         critic_1_grads = tape.gradient(critic_1_loss, self.q1.trainable_variables)
         self.q1.optimizer.apply_gradients(zip(critic_1_grads, self.q1.trainable_variables))
 
-        with tf.GradientTape() as tape2:
-            next_action, next_log_prob = self.policy(states_)
-            target_q1_next = self.target_q1(states_, next_action)
-            target_q2_next = self.target_q2(states_, next_action)
-            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
-            y = rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min, axis=1)
-            
-            q2 = self.q2(states, actions)
-            
-            critic_2_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q2, axis=1))
-        
         critic_2_grads = tape2.gradient(critic_2_loss, self.q2.trainable_variables)
         self.q2.optimizer.apply_gradients(zip(critic_2_grads, self.q2.trainable_variables))
 
         with tf.GradientTape() as tape_act:
-            actions, log_probs = self.policy(states)
-            q1 = self.q1(states, actions)
-            q2 = self.q2(states, actions)
+            n_actions, log_probs = self.policy(states)
+
+
+            q1 = self.q1(states, n_actions)
+            q2 = self.q2(states, n_actions)
 
             min_q = tf.minimum(q1, q2)
 
-            actor_loss = tf.reduce_mean(self.alpha * log_probs - tf.squeeze(min_q, axis=1))
+            actor_loss = tf.reduce_mean(self.alpha * log_probs - min_q)
         
             actor_grads = tape_act.gradient(actor_loss, self.policy.trainable_variables)
             self.policy.optimizer.apply_gradients(zip(actor_grads, self.policy.trainable_variables))
