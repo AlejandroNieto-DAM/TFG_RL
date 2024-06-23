@@ -33,21 +33,21 @@ class SAC():
         self.target_q1.compile(optimizer=Adam(learning_rate=alpha))
         self.target_q2.compile(optimizer=Adam(learning_rate=alpha))
 
-        self.update_target(self.target_q1.variables, self.q1.variables)
-        self.update_target(self.target_q2.variables, self.q2.variables)
+        self.update_target(self.target_q1.variables, self.q1.variables, 1)
+        self.update_target(self.target_q2.variables, self.q2.variables, 1)
 
 
     def store_data(self, state, action, reward, new_state, done):
         self.memory.store_data(state, action, reward, new_state, done)
 
     def choose_action(self, observation):
-        action, _ = self.policy(tf.convert_to_tensor([observation]))
-        rospy.loginfo("Estamos dentro del agente sac --" + str(action[0]))
-        return tf.argmax(action[0]).numpy()
+        action, _ = self.policy(tf.convert_to_tensor([observation], dtype=tf.float32))
+        mapped_action = (action[0, 0].numpy() + 1.0) * 2.0  # Scale to [0, 4]
+        return int(np.round(mapped_action))
 
-    def update_target(self, target_weights, weights):
+    def update_target(self, target_weights, weights, tau):
         for (a, b) in zip(target_weights, weights):
-            a.assign(self.tau * b + (1 - self.tau) * a)
+            a.assign(tau * b + (1 - tau) * a)
 
     def save_models(self):
         self.policy.save_weights(self.policy.save_directory)
@@ -65,12 +65,10 @@ class SAC():
 
     def learn(self):
 
-        rospy.loginfo("Tamo trainin")
-
         if self.memory.counter < self.batch_size:
             return
 
-        state_arr, action_arr, reward_arr, new_state_arr, dones_arr = self.memory.generate_data(32)
+        state_arr, action_arr, reward_arr, new_state_arr, dones_arr = self.memory.generate_data(self.batch_size)
 
         states = tf.convert_to_tensor(state_arr, dtype=tf.float32)
         states_ = tf.convert_to_tensor(new_state_arr, dtype=tf.float32)
@@ -78,22 +76,8 @@ class SAC():
         actions = tf.convert_to_tensor(action_arr, dtype=tf.float32)
         dones = tf.convert_to_tensor(dones_arr, dtype=tf.float32)
 
-        # Need to have two tapes to update the nets
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(persistent=True) as tape:
             q1 = self.q1(states, actions)
-
-            next_action, next_log_prob = self.policy(states_)
-
-            target_q1_next = self.target_q1(states_, next_action)
-            target_q2_next = self.target_q2(states_, next_action)
-
-            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
-            y = tf.stop_gradient(rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min, axis=1))
-            
-            critic_1_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q1, axis=1))
-        
-
-        with tf.GradientTape() as tape2:
             q2 = self.q2(states, actions)
 
             next_action, next_log_prob = self.policy(states_)
@@ -101,33 +85,31 @@ class SAC():
             target_q1_next = self.target_q1(states_, next_action)
             target_q2_next = self.target_q2(states_, next_action)
 
-            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
-            y = tf.stop_gradient(rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min, axis=1))
+            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * tf.reduce_mean(next_log_prob)
+            y = rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min)
 
-            critic_2_loss = 0.5 * tf.keras.losses.MSE(y, tf.squeeze(q2, axis=1))
-        
+            critic_1_loss = tf.reduce_mean((y - tf.squeeze(q1))**2)
+            critic_2_loss = tf.reduce_mean((y - tf.squeeze(q2))**2)
+
         critic_1_grads = tape.gradient(critic_1_loss, self.q1.trainable_variables)
-        self.q1.optimizer.apply_gradients(zip(critic_1_grads, self.q1.trainable_variables))
+        critic_2_grads = tape.gradient(critic_2_loss, self.q2.trainable_variables)
 
-        critic_2_grads = tape2.gradient(critic_2_loss, self.q2.trainable_variables)
+        self.q1.optimizer.apply_gradients(zip(critic_1_grads, self.q1.trainable_variables))
         self.q2.optimizer.apply_gradients(zip(critic_2_grads, self.q2.trainable_variables))
 
         with tf.GradientTape() as tape_act:
-            n_actions, log_probs = self.policy(states)
+            actions, log_probs = self.policy(states)
+            q1_policy = self.q1(states, actions)
+            q2_policy = self.q2(states, actions)
 
+            min_q_policy = tf.minimum(q1_policy, q2_policy)
 
-            q1 = self.q1(states, n_actions)
-            q2 = self.q2(states, n_actions)
+            actor_loss = tf.reduce_mean(self.alpha * log_probs - min_q_policy)
 
-            min_q = tf.minimum(q1, q2)
+        actor_grads = tape_act.gradient(actor_loss, self.policy.trainable_variables)
+        self.policy.optimizer.apply_gradients(zip(actor_grads, self.policy.trainable_variables))
 
-            actor_loss = tf.reduce_mean(self.alpha * log_probs - min_q)
-        
-            actor_grads = tape_act.gradient(actor_loss, self.policy.trainable_variables)
-            self.policy.optimizer.apply_gradients(zip(actor_grads, self.policy.trainable_variables))
-        
-        self.update_target(self.target_q1.variables, self.q1.variables)
-        self.update_target(self.target_q2.variables, self.q2.variables)
+        self.update_target(self.target_q1.variables, self.q1.variables, self.tau)
+        self.update_target(self.target_q2.variables, self.q2.variables, self.tau)
 
-        rospy.loginfo("Salimo trainin")
 
