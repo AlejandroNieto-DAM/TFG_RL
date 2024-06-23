@@ -85,7 +85,7 @@ class SAC():
             target_q1_next = self.target_q1(states_, next_action)
             target_q2_next = self.target_q2(states_, next_action)
 
-            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * tf.reduce_mean(next_log_prob)
+            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * tf.reduce_min(next_log_prob)
             y = rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min)
 
             critic_1_loss = tf.reduce_mean((y - tf.squeeze(q1))**2)
