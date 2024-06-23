@@ -11,7 +11,7 @@ from tensorflow.keras import Model
 
 class Q_Network(Model):
     def __init__(self, fc1_dims, fc2_dims, n_actions):
-        super(Actor, self).__init__()
+        super(Q_Network, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.n_actions = n_actions

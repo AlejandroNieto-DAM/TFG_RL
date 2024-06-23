@@ -5,6 +5,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 from tensorflow.keras.optimizers import Adam
+import rospy
 
 class DQN():
     def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, epsilon_min = 0.01, gamma = 0.99, lr = 0.0003, epsilon = 1.0, max_size = 100000, input_dims=[362], batch_size = 64):
@@ -46,27 +47,27 @@ class DQN():
         if len(self.memory.states) < self.batch_size:
             return
             
-        state_arr, action_arr, reward_arr, new_state_arr, dones_arr, batches = self.memory.generate_data()
+        state_arr, action_arr, reward_arr, new_state_arr, dones_arr = self.memory.generate_data(self.batch_size)
 
-        states = tf.convert_to_tensor(state, dtype=tf.float32)
+        states = tf.convert_to_tensor(state_arr, dtype=tf.float32)
         states_ = tf.convert_to_tensor(new_state_arr, dtype=tf.float32)
-        rewards = tf.convert_to_tensor(reward, dtype=tf.float32)
-        actions = tf.convert_to_tensor(action, dtype=tf.float32)
-        done = tf.convert_to_tensor(dones_arr, dtype=tf.float32)
+        rewards = tf.convert_to_tensor(reward_arr, dtype=tf.float32)
+        actions = tf.convert_to_tensor(action_arr, dtype=tf.float32)
+        dones = tf.convert_to_tensor(dones_arr, dtype=tf.float32)
+        
 
         with tf.GradientTape() as tape:
+            q_values = self.model(states)
             next_q_values = self.target_model(states_)
+
             max_next_q_values = np.max(next_q_values, axis=1)
 
-            if done:
-                y = rewards
-            else:
-                y = rewards + self.gamma * (1 - done) * max_next_q_values
+            y = np.where(dones, rewards, rewards + self.gamma * max_next_q_values)
 
-            q_values = self.model(states)
-            indices = tf.range(self.batch_size)
-            q_values = tf.gather_nd(q_values, tf.stack([indices, actions], axis=1))
+            actions = actions[:, 0]
+            actions = tf.cast(actions, tf.int32)
 
+            q_values = tf.reduce_sum(q_values * tf.one_hot(actions, self.n_actions), axis=1)
 
             loss =  tf.keras.losses.MSE(y, q_values)
                                 

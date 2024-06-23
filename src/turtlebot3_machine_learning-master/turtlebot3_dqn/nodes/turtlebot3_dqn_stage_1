@@ -14,6 +14,7 @@ from std_msgs.msg import Float32MultiArray
 from src.turtlebot3_dqn.environment import Env
 from nodes.PPOAgent.agent import PPOAgent
 from nodes.SAC.agent import SAC
+from nodes.DQN.agent import DQN
 from keras.models import Sequential, load_model
 from keras.optimizers import RMSprop
 from keras.layers import Dense, Dropout, Activation
@@ -22,78 +23,75 @@ from keras.layers import Dense, Dropout, Activation
 EPISODES = 3000
 
 def body_dqn():
+
+    
+    number_of_coins = rospy.get_param("number_of_coins", 0)
+    using_camera = rospy.get_param("using_camera", 0)
+
     rospy.init_node('turtlebot3_dqn_stage_1')
     pub_result = rospy.Publisher('result', Float32MultiArray, queue_size=5)
     pub_get_action = rospy.Publisher('get_action', Float32MultiArray, queue_size=5)
     result = Float32MultiArray()
     get_action = Float32MultiArray()
 
-    state_size = 362
+    # 360 is the size of LIDAR (360 lasers) we add 2 values of angle and distance to goal
+    # the other 2 values are the angle and distance of the closer obstacle and we will add also
+    # the distance to each coin so we add the number of coins
+    state_size = 360 + 2 + 2 + number_of_coins
     action_size = 5
+    N = 100
+    n_steps = 0
+    learn_iters = 0
+    score_history = []
+    best_score = 200
+    target_update = 2000
 
-    env = Env(action_size)
 
-    agent = ReinforceAgent(state_size, action_size)
+    env = Env(action_size, using_camera, number_of_coins)
+
+    agent = DQN(input_dims=[state_size], n_actions = action_size)
                         
     scores, episodes = [], []
     global_step = 0
     start_time = time.time()
 
-    for e in range(agent.load_episode + 1, EPISODES):
+    for e in range(EPISODES):
         done = False
         state = env.reset()
         score = 0
-        for t in range(agent.episode_step):
-            action = agent.getAction(state)
+        for t in range(6000):
+            action = agent.choose_action(state)
+            #rospy.loginfo("Que ha pasao " + str(action))
+            state_, reward, done = env.step(action)
 
-            next_state, reward, done = env.step(action)
+            n_steps += 1
 
-            agent.appendMemory(state, action, reward, next_state, done)
+            agent.store_data(state, action, reward, state_, done)
 
-            if len(agent.memory) >= agent.train_start:
-                print("Entrooo")
-                if global_step <= agent.target_update:
-                    agent.trainModel()
-                else:
-                    agent.trainModel(True)
-                print("Salgo")
+            if n_steps % N == 0:
+                env.pause_simulation()
+                agent.learn()
+                env.unpause_proxy()
+                learn_iters += 1
 
+            state = state_
             score += reward
-            state = next_state
-            get_action.data = [action, score, reward]
-            pub_get_action.publish(get_action)
 
-            if e % 10 == 0:
-                agent.model.save(agent.dirPath + str(e) + '.h5')
-                with open(agent.dirPath + str(e) + '.json', 'w') as outfile:
-                    json.dump(param_dictionary, outfile)
+            rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
 
             if t >= 500:
                 rospy.loginfo("Time out!!")
                 done = True
 
+
             if done:
-                result.data = [score, np.max(agent.q_value)]
-                pub_result.publish(result)
-                agent.updateTargetModel()
-                scores.append(score)
-                episodes.append(e)
-                m, s = divmod(int(time.time() - start_time), 60)
-                h, m = divmod(m, 60)
+                score_history.append(score)
+                avg_score = np.mean(score_history[-100:])
 
-                rospy.loginfo('Ep: %d score: %.2f memory: %d epsilon: %.2f time: %d:%02d:%02d',
-                              e, score, len(agent.memory), agent.epsilon, h, m, s)
-                param_keys = ['epsilon']
-                param_values = [agent.epsilon]
-                param_dictionary = dict(zip(param_keys, param_values))
+                if avg_score > best_score:
+                    best_score = avg_score
+                #    agent.save_models()
                 break
-
-            global_step += 1
-            if global_step % agent.target_update == 0:
-                rospy.loginfo("UPDATE TARGET NETWORK")
-
-        if agent.epsilon > agent.epsilon_min:
-            agent.epsilon *= agent.epsilon_decay
 
 def body_ppo_agent():
     rospy.init_node('turtlebot3_dqn_stage_1')
@@ -264,5 +262,5 @@ def body_sac_agent():
                 break
 
 if __name__ == '__main__':
-    body_sac_agent()
-    #body_dqn()
+    #body_sac_agent()
+    body_dqn()
