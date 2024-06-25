@@ -8,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 import rospy
 
 class SAC():
-    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0003, gamma = 0.99, tau = 0.005, max_size = 100000, input_dims=[362], batch_size = 64):
+    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0003, gamma = 0.99, tau = 0.005, max_size = 100000, input_dims=[364], batch_size = 64):
 
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims

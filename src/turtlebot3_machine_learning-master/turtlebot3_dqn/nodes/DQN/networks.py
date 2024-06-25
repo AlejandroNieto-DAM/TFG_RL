@@ -10,11 +10,14 @@ from tensorflow.keras import Model
 
 
 class Q_Network(Model):
-    def __init__(self, fc1_dims, fc2_dims, n_actions):
+    def __init__(self, fc1_dims, fc2_dims, n_actions, name, save_directory = 'model_weights/dqn/'):
         super(Q_Network, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.n_actions = n_actions
+
+        self.model_name = name
+        self.save_directory = os.path.join(save_directory, self.model_name + '_dqn')
         
         self.fc1 = Dense(self.fc1_dims, activation='relu')
         self.fc2 = Dense(self.fc1_dims, activation='relu')

@@ -10,7 +10,7 @@ from tensorflow.keras import Model
 import rospy
 
 class Critic(Model):
-    def __init__(self, fc1_dims, fc2_dims, name, save_directory = 'model_weights'):
+    def __init__(self, fc1_dims, fc2_dims, name, save_directory = 'model_weights/sac/'):
         super(Critic, self).__init__()
 
         self.model_name = name
@@ -32,7 +32,7 @@ class Critic(Model):
         return q_value
 
 class Actor(Model):
-    def __init__(self, fc1_dims, fc2_dims, n_actions, name, save_directory = 'model_weights'):
+    def __init__(self, fc1_dims, fc2_dims, n_actions, name, save_directory = 'model_weights/sac/'):
         super(Actor, self).__init__()
 
         self.model_name = name

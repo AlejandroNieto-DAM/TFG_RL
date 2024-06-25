@@ -8,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 import rospy
 
 class DQN():
-    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, epsilon_min = 0.01, gamma = 0.99, lr = 0.0003, epsilon = 1.0, max_size = 100000, input_dims=[362], batch_size = 64):
+    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, epsilon_min = 0.01, gamma = 0.99, lr = 0.0003, epsilon = 1.0, max_size = 100000, input_dims=[364], batch_size = 64):
 
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
@@ -22,8 +22,8 @@ class DQN():
 
         self.memory = ReplayBuffer(max_size, input_dims, n_actions)
 
-        self.model = Q_Network(self.fc1_dims, self.fc2_dims, self.n_actions)
-        self.target_model = Q_Network(self.fc1_dims, self.fc2_dims, self.n_actions)
+        self.model = Q_Network(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="model")
+        self.target_model = Q_Network(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
        
         self.model.compile(optimizer=Adam(learning_rate=self.lr))
         self.target_model.compile(optimizer=Adam(learning_rate=self.lr))
