@@ -14,6 +14,9 @@ import cv2
 from cv_bridge import CvBridge, CvBridgeError
 import os
 from std_msgs.msg import String
+import sys
+import rospy
+import time 
 
 bridge = CvBridge()
 
@@ -77,23 +80,20 @@ class Env():
             except:
                 rospy.loginfo("Current " + self.camera_topic + " not ready yet, retrying for getting front_camera_rgb_image_raw")
         
-    def image_callback(self, data):        
-        # Path donde se estan guardando home/nietoff/.ros
-        self.front_camera_rgb_image_raw = data
-
+    def image_callback(self, data):                       
         try:
             # Convert your ROS Image message to OpenCV2
-            cv2_img = bridge.imgmsg_to_cv2(self.front_camera_rgb_image_raw, "bgr8")
+            cv2_img = bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
             rospy.loginfo("MIRA LA EXCEPTION -- " + e)
         
         # TODO this is ok but we have to move this from there in order
         # to see if the memory class that we have for the nets can handle images
         # should we use this in getState? Is for a CNN the state the image?
+        cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}.png".format(timestamp=rospy.Time.now()), cv2_img)
+        cv2.waitKey(1)  
 
-        #cv2.imwrite("images/image_{timestamp}_{reward}.png".format(timestamp=rospy.Time.now(), reward), cv2_img)
-        #cv2.waitKey(1)  
-        #self.front_camera_rgb_image_raw = cv2_img
+        self.front_camera_rgb_image_raw = cv2_img # SHape 640 x 480 x 3
 
     def pause_simulation(self):
         self.pause_proxy()
@@ -154,7 +154,12 @@ class Env():
         
         rospy.logdebug("Salimos de getState")
 
-        return scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle] + self.coins_distance.tolist(), done
+        #if self.using_camera:
+            #state = self.front_camera_rgb_image_raw
+        #else:
+        state = scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle] + self.coins_distance.tolist()
+
+        return state, done
 
 
     def setReward(self, state, done, action):
@@ -219,8 +224,6 @@ class Env():
 
         state, done = self.getState(data)
         reward = self.setReward(state, done, action)
-
-
 
         return np.asarray(state), reward, done
 

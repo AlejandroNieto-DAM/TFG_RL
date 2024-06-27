@@ -17,7 +17,11 @@ class PPOAgent:
         self.policy_clip = policy_clip
         self.n_epochs = n_epochs
         self.gae_lambda = gae_lambda
-        
+
+
+        # if using_camera:
+        #self.actor = CNNActor(n_actions=n_actions, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=256, name='cnn_actor')
+        #else:
         self.actor = Actor(fc1_dims=fc1_dims, fc2_dims=fc2_dims, n_actions=n_actions, name="actor")
         self.actor.compile(optimizer=Adam(learning_rate=alpha))
         
@@ -53,6 +57,10 @@ class PPOAgent:
         return action, log_prob, value
 
     def learn(self):
+
+        # Cuando entrenemos la red cnn deberiamos de hacer data augmentation
+        # aunque no se muy bien como se hace eso
+        
         for _ in range(self.n_epochs):
             state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_data()
             

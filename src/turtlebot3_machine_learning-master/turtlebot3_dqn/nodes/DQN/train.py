@@ -17,7 +17,7 @@ from keras.optimizers import RMSprop
 from keras.layers import Dense, Dropout, Activation
 
 class TrainDQN:
-    def __init__(self, state_size, action_size, N = 128, env, episodes = 3000):
+    def __init__(self, state_size = [364], action_size = 5, N = 128, env = None, episodes = 3000):
 
         self.state_size = state_size
         self.action_size = action_size
@@ -37,41 +37,41 @@ class TrainDQN:
         
     def train(self):
         for e in range(self.episodes):
-        done = False
-        state = self.env.reset()
-        score = 0
-        for t in range(6000):
-            action = self.agent.choose_action(state)
+            done = False
+            state = self.env.reset()
+            score = 0
+            for t in range(6000):
+                action = self.agent.choose_action(state)
 
-            state_, reward, done = self.env.step(action)
+                state_, reward, done = self.env.step(action)
 
-            self.n_steps += 1
+                self.n_steps += 1
 
-            self.agent.store_data(state, action, reward, state_, done)
+                self.agent.store_data(state, action, reward, state_, done)
 
-            if self.n_steps % N == 0:
-                self.env.pause_simulation()
-                self.agent.learn()
-                self.env.unpause_proxy()
-                self.learn_iters += 1
+                if self.n_steps % N == 0:
+                    self.env.pause_simulation()
+                    self.agent.learn()
+                    self.env.unpause_proxy()
+                    self.learn_iters += 1
 
-            state = state_
-            score += reward
+                state = state_
+                score += reward
 
-            rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
-
-
-            if t >= 500:
-                rospy.loginfo("Time out!!")
-                done = True
+                rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
 
 
-            if done:
-                self.score_history.append(score)
-                avg_score = np.mean(self.score_history[-100:])
+                if t >= 500:
+                    rospy.loginfo("Time out!!")
+                    done = True
 
-                if avg_score > self.best_score:
-                    self.best_score = avg_score
-                    self.agent.save_models()
 
-                break
+                if done:
+                    self.score_history.append(score)
+                    avg_score = np.mean(self.score_history[-100:])
+
+                    if avg_score > self.best_score:
+                        self.best_score = avg_score
+                        self.agent.save_models()
+
+                    break
