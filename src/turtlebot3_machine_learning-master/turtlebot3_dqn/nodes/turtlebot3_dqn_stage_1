@@ -20,7 +20,14 @@ if __name__ == '__main__':
     # 360 is the size of LIDAR (360 lasers) we add 2 values of angle and distance to goal
     # the other 2 values are the angle and distance of the closer obstacle and we will add also
     # the distance to each coin so we add the number of coins
-    state_size = 360 + 2 + 2 + number_of_coins
+    # Al diablo hay que meter aqui como hacer las dims si se usa la camara!!!
+    if using_camera:
+        # Should use something like this?
+        # state_size = np.ndarray(480, 640, 3)
+        pass
+    else:
+        state_size = 360 + 2 + 2 + number_of_coins
+    
     action_size = 5
 
     env = Env(action_size, using_camera, number_of_coins)

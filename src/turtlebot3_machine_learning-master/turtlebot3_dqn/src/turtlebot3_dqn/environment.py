@@ -86,12 +86,6 @@ class Env():
             cv2_img = bridge.imgmsg_to_cv2(data, "bgr8")
         except CvBridgeError as e:
             rospy.loginfo("MIRA LA EXCEPTION -- " + e)
-        
-        # TODO this is ok but we have to move this from there in order
-        # to see if the memory class that we have for the nets can handle images
-        # should we use this in getState? Is for a CNN the state the image?
-        cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}.png".format(timestamp=rospy.Time.now()), cv2_img)
-        cv2.waitKey(1)  
 
         self.front_camera_rgb_image_raw = cv2_img # SHape 640 x 480 x 3
 
@@ -156,7 +150,10 @@ class Env():
 
         #if self.using_camera:
             #state = self.front_camera_rgb_image_raw
+            #cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}.png".format(timestamp=rospy.Time.now()), self.front_camera_rgb_image_raw)
+            #cv2.waitKey(1)
         #else:
+          
         state = scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle] + self.coins_distance.tolist()
 
         return state, done
