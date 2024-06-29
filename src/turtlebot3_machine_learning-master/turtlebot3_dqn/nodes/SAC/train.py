@@ -17,8 +17,9 @@ from keras.optimizers import RMSprop
 from keras.layers import Dense, Dropout, Activation
 
 class TrainSAC:
-    def __init__(self, state_size = [364], action_size = 5, N = 128, env = None, episodes = 3000):
+    def __init__(self, state_size = [364], action_size = 5, N = 128, env = None, episodes = 3000, using_camera = 0):
 
+        self.using_camera = using_camera
         self.state_size = state_size
         self.action_size = action_size
         self.N = N
@@ -33,7 +34,7 @@ class TrainSAC:
 
         self.env = env
 
-        self.agent = SAC(input_dims = [state_size])
+        self.agent = SAC(input_dims = [state_size], using_camera = self.using_camera)
 
     def train(self):
         for e in range(self.episodes):

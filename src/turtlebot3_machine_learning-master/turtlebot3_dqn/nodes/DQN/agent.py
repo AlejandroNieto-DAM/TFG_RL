@@ -1,4 +1,4 @@
-from nodes.DQN.networks import Q_Network
+from nodes.DQN.networks import QNetwork, CNNQNetwork
 from nodes.DQN.memory import ReplayBuffer
 import os
 import numpy as np
@@ -8,8 +8,9 @@ from tensorflow.keras.optimizers import Adam
 import rospy
 
 class DQN():
-    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, epsilon_min = 0.01, gamma = 0.99, lr = 0.0003, epsilon = 1.0, max_size = 100000, input_dims=[364], batch_size = 64):
-
+    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, epsilon_min = 0.01, gamma = 0.99, lr = 0.0003, epsilon = 1.0, max_size = 100000, input_dims=[364], batch_size = 64, using_camera=0):
+        
+        self.using_camera = using_Camera
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.n_actions = n_actions
@@ -20,10 +21,14 @@ class DQN():
         self.lr = lr
         self.gamma = gamma
 
-        self.memory = ReplayBuffer(max_size, input_dims, n_actions)
+        self.memory = ReplayBuffer(max_size, input_dims, n_actions, using_camera)
 
-        self.model = Q_Network(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="model")
-        self.target_model = Q_Network(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
+        if self.using_camera:
+            self.target_model = CNNQNetwork(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
+            self.model = CNNQNetwork(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="model")
+        else:
+            self.model = QNetwork(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="model")
+            self.target_model = QNetwork(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
        
         self.model.compile(optimizer=Adam(learning_rate=self.lr))
         self.target_model.compile(optimizer=Adam(learning_rate=self.lr))

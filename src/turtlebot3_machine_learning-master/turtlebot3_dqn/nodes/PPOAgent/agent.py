@@ -11,24 +11,26 @@ from nodes.PPOAgent.memory import Memory
 
 class PPOAgent:
     def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, input_dims = [364], gamma=0.99, alpha=0.0003,
-                 gae_lambda=0.95, policy_clip=0.2, batch_size=64, n_epochs=10):
+                 gae_lambda=0.95, policy_clip=0.2, batch_size=64, n_epochs=10, using_camera = 0):
 
+        self.using_camera = using_camera
         self.gamma = gamma
         self.policy_clip = policy_clip
         self.n_epochs = n_epochs
         self.gae_lambda = gae_lambda
 
 
-        # if using_camera:
-        #self.actor = CNNActor(n_actions=n_actions, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=256, name='cnn_actor')
-        #else:
-        self.actor = Actor(fc1_dims=fc1_dims, fc2_dims=fc2_dims, n_actions=n_actions, name="actor")
+        if using_camera:
+            self.actor = CNNActor(n_actions=n_actions, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=256, name='cnn_actor')
+        else:
+            self.actor = Actor(fc1_dims=fc1_dims, fc2_dims=fc2_dims, n_actions=n_actions, name="actor")
+        
         self.actor.compile(optimizer=Adam(learning_rate=alpha))
         
         self.critic = Critic(fc1_dims=fc1_dims, fc2_dims=fc2_dims, name="critic")
         self.critic.compile(optimizer=Adam(learning_rate=alpha))
         
-        self.memory = Memory(batch_size)
+        self.memory = Memory(batch_size, self.using_camera)
 
     def store_transition(self, state, action, probs, vals, reward, done):
         self.memory.store_data(state, action, probs, vals, reward, done)

@@ -23,8 +23,7 @@ if __name__ == '__main__':
     # Al diablo hay que meter aqui como hacer las dims si se usa la camara!!!
     if using_camera:
         # Should use something like this?
-        # state_size = np.ndarray(480, 640, 3)
-        pass
+        state_size = [480, 640, 3]
     else:
         state_size = 360 + 2 + 2 + number_of_coins
     
@@ -33,10 +32,10 @@ if __name__ == '__main__':
     env = Env(action_size, using_camera, number_of_coins)
 
     if algorithm == "SAC":
-        train_instance = TrainSAC(state_size = state_size, action_size=action_size, env=env)
+        train_instance = TrainSAC(state_size = state_size, action_size=action_size, env=env, using_camera = using_camera)
     elif algorithm == "PPO":
-        train_instance = TrainPPO(state_size = state_size, action_size=action_size, env=env)
+        train_instance = TrainPPO(state_size = state_size, action_size=action_size, env=env, using_camera = using_camera)
     else:
-        train_instance = TrainDQN(state_size = state_size, action_size=action_size, env=env)
+        train_instance = TrainDQN(state_size = state_size, action_size=action_size, env=env, using_camera = using_camera)
 
     train_instance.train()

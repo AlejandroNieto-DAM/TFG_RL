@@ -2,7 +2,8 @@ import numpy as np
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array
 
 class Memory:
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, using_camera):
+        self.using_camera = using_camera
         self.states = []
         self.probs = []
         self.vals = []
@@ -26,10 +27,10 @@ class Memory:
 
         return np.array(self.states), np.array(self.probs), np.array(self.vals), np.array(self.actions), np.array(self.rewards), np.array(self.dones), indices_batches
 
-    def store_data(self, states, probs, vals, actions, rewards, dones, using_camera = 0):
+    def store_data(self, states, probs, vals, actions, rewards, dones):
 
         # Hay que testar esto
-        if using_camera:
+        if self.using_camera:
             self.store_data_camera(states, probs, vals, actions, rewards, dones)
         else:
             self.states.append(states)
@@ -82,6 +83,15 @@ class Memory:
         processed_image = load_and_convert_image(image_path)
         num_augments = 5
         augmented_images = augment_image(processed_image, num_augments)
+
+        # Here we save the original image
+        self.states.append(processed_image)
+        self.probs.append(probs)
+        self.vals.append(vals)
+        self.actions.append(actions)
+        self.rewards.append(rewards)
+        self.dones.append(dones)
+
 
         for aug_img in augmented_image:
             self.states.append(aug_img)

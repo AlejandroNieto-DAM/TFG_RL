@@ -19,8 +19,9 @@ from keras.layers import Dense, Dropout, Activation
 
 
 class TrainPPO:
-    def __init__(self, state_size = [364], action_size = 5, N = 128, n_epochs = 5, batch_size = 64, alpha=0.0003, episodes = 3000, env = None):
+    def __init__(self, state_size = [364], action_size = 5, N = 128, n_epochs = 5, batch_size = 64, alpha=0.0003, episodes = 3000, env = None, using_camera = 0):
 
+        self.using_camera = using_camera
         self.state_size = state_size
         self.action_size = action_size
         self.N = N
@@ -39,7 +40,7 @@ class TrainPPO:
         self.env = env
 
         self.agent = PPOAgent(n_actions = self.action_size, batch_size = self.batch_size, alpha=self.alpha,
-                            n_epochs=self.n_epochs, input_dims=[self.state_size])
+                            n_epochs=self.n_epochs, input_dims=[self.state_size], using_camera = self.using_camera)
         # Maybe in PPo doesnt work [self.state_size] and we have to change it to self.state_size
         
     def train(self):
