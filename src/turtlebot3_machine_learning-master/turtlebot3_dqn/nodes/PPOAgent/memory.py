@@ -96,7 +96,7 @@ class Memory:
         self.rewards.append(reward)
         self.dones.append(done)
 
-
+        """
         for aug_img in augmented_images:
             self.states.append(aug_img)
             self.probs.append(prob)
@@ -104,5 +104,6 @@ class Memory:
             self.actions.append(action)
             self.rewards.append(reward)
             self.dones.append(done)
+        """
 
 

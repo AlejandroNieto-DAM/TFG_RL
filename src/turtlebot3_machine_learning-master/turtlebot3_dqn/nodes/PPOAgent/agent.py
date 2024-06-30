@@ -8,6 +8,7 @@ from tensorflow.keras.layers import Dense
 import os
 from nodes.PPOAgent.networks import Critic, Actor, CNNActor
 from nodes.PPOAgent.memory import Memory
+import rospy
 
 class PPOAgent:
     def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, input_dims = [364], gamma=0.99, alpha=0.0003,
@@ -64,7 +65,11 @@ class PPOAgent:
         
         for _ in range(self.n_epochs):
             state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_data()
-            
+
+            rospy.loginfo("Reward arr" + str(reward_arr))
+            rospy.loginfo("Values arr" + str(vals_arr))
+            rospy.loginfo("Dones arr" + str(dones_arr))
+
             values = vals_arr
             advantage = np.zeros(len(reward_arr), dtype=np.float32)
 
