@@ -47,6 +47,37 @@ class Critic(Model):
 
         return output
 
+class CNNCritic(Model):
+    def __init__(self, conv1_dims, conv2_dims, fc1_dims, fc2_dims, name, save_directory = 'model_weights/sac/'):
+        super(CNNCritic, self).__init__()
+
+        self.model_name = name
+        self.save_directory = os.path.join(save_directory, self.model_name + '_sac')
+
+        self.fc1_dims = fc1_dims
+        self.fc2_dims = fc2_dims
+
+        self.conv1 = Conv2D(conv1_dims[0], conv1_dims[1], activation='relu', padding='same')
+        self.pool1 = MaxPooling2D(pool_size=(2, 2))
+        self.conv2 = Conv2D(conv2_dims[0], conv2_dims[1], activation='relu', padding='same')
+        self.pool2 = MaxPooling2D(pool_size=(2, 2))
+        self.flatten = Flatten()
+        self.fc1 = Dense(self.fc1_dims, activation='relu')
+        self.fc2 = Dense(self.fc2_dims, activation='relu')
+        self.q_value = Dense(1)
+
+    def call(self, state):
+        x = self.conv1(state)
+        x = self.pool1(x)
+        x = self.conv2(x)
+        x = self.pool2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        q_value = self.q_value(x)
+
+        return q_value
+
 class CNNActor(Model):
     def __init__(self, n_actions, conv1_dims, conv2_dims, fc1_dims, name, save_directory='model_weights/ppo/'):
         super(CNNActor, self).__init__()

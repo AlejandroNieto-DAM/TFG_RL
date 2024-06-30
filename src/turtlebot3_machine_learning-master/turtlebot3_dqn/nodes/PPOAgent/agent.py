@@ -6,7 +6,7 @@ import tensorflow_probability as tfp
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense
 import os
-from nodes.PPOAgent.networks import Critic, Actor, CNNActor
+from nodes.PPOAgent.networks import Critic, Actor, CNNActor, CNNCritic
 from nodes.PPOAgent.memory import Memory
 import rospy
 
@@ -23,12 +23,12 @@ class PPOAgent:
 
         if using_camera:
             self.actor = CNNActor(n_actions=n_actions, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=256, name='cnn_actor')
+            self.critic = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=fc1_dims, fc2_dims=fc2_dims, name="critic")
         else:
             self.actor = Actor(fc1_dims=fc1_dims, fc2_dims=fc2_dims, n_actions=n_actions, name="actor")
+            self.critic = Critic(fc1_dims=fc1_dims, fc2_dims=fc2_dims, name="critic")
         
         self.actor.compile(optimizer=Adam(learning_rate=alpha))
-        
-        self.critic = Critic(fc1_dims=fc1_dims, fc2_dims=fc2_dims, name="critic")
         self.critic.compile(optimizer=Adam(learning_rate=alpha))
         
         self.memory = Memory(batch_size, self.using_camera)
