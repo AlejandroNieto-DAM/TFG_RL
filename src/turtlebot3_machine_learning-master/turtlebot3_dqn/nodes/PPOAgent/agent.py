@@ -6,12 +6,12 @@ import tensorflow_probability as tfp
 from tensorflow.keras import Sequential
 from tensorflow.keras.layers import Dense
 import os
-from nodes.PPOAgent.networks import Critic, Actor
+from nodes.PPOAgent.networks import Critic, Actor, CNNActor
 from nodes.PPOAgent.memory import Memory
 
 class PPOAgent:
     def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, input_dims = [364], gamma=0.99, alpha=0.0003,
-                 gae_lambda=0.95, policy_clip=0.2, batch_size=64, n_epochs=10, using_camera = 0):
+                 gae_lambda=0.95, policy_clip=0.2, batch_size=5, n_epochs=5, using_camera = 0):
 
         self.using_camera = using_camera
         self.gamma = gamma
@@ -60,8 +60,7 @@ class PPOAgent:
 
     def learn(self):
 
-        # Cuando entrenemos la red cnn deberiamos de hacer data augmentation
-        # aunque no se muy bien como se hace eso
+        rospy.loginfo("Entramo al learning")
         
         for _ in range(self.n_epochs):
             state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_data()
@@ -111,3 +110,5 @@ class PPOAgent:
                 self.critic.optimizer.apply_gradients(zip(critic_grads, critic_params))
 
         self.memory.clear_data()
+
+    rospy.loginfo("Salimo del learning")

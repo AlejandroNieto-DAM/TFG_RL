@@ -67,7 +67,6 @@ class CNNActor(Model):
         self.fc2 = Dense(n_actions, activation='softmax')
 
     def call(self, state):
-        state = tf.expand_dims(state, axis=0)
         x = self.conv1(state)
         x = self.pool1(x)
         x = self.conv2(x)

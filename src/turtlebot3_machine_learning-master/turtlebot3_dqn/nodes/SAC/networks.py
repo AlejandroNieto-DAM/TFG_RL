@@ -91,7 +91,7 @@ class CNNActor(Model):
         self.log_std_layer = Dense(self.n_actions, activation=None)
 
     def call(self, state):
-        state = tf.expand_dims(state, axis=0)
+        #state = tf.image.convert_image_dtype(state, tf.float32)
         x = self.conv1(state)
         x = self.pool1(x)
         x = self.conv2(x)

@@ -17,6 +17,8 @@ from std_msgs.msg import String
 import sys
 import rospy
 import time 
+import tensorflow as tf
+import cv2
 
 bridge = CvBridge()
 
@@ -84,10 +86,14 @@ class Env():
         try:
             # Convert your ROS Image message to OpenCV2
             cv2_img = bridge.imgmsg_to_cv2(data, "bgr8")
+            bgr_image = cv2_img
+            rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+            rgb_image = tf.image.convert_image_dtype(rgb_image, tf.float32)
         except CvBridgeError as e:
             rospy.loginfo("MIRA LA EXCEPTION -- " + e)
 
-        self.front_camera_rgb_image_raw = cv2_img # SHape 640 x 480 x 3
+        
+        self.front_camera_rgb_image_raw = rgb_image # SHape 640 x 480 x 3
 
     def pause_simulation(self):
         self.pause_proxy()
@@ -112,7 +118,7 @@ class Env():
 
         self.heading = round(heading, 2)
 
-    def getState(self, scan):
+    def getState(self, scan, using_camera):
 
         rospy.logdebug("Entramos en getState")
 
@@ -148,13 +154,12 @@ class Env():
         
         rospy.logdebug("Salimos de getState")
 
-        #if self.using_camera:
-            #state = self.front_camera_rgb_image_raw
+        if using_camera:
+            state = self.front_camera_rgb_image_raw
             #cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}.png".format(timestamp=rospy.Time.now()), self.front_camera_rgb_image_raw)
             #cv2.waitKey(1)
-        #else:
-          
-        state = scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle] + self.coins_distance.tolist()
+        else:
+            state = scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle] + self.coins_distance.tolist()
 
         return state, done
 
@@ -219,8 +224,16 @@ class Env():
             except:
                 pass
 
-        state, done = self.getState(data)
-        reward = self.setReward(state, done, action)
+        state, done = self.getState(data, self.using_camera)
+
+        if self.using_camera:
+            # Para calcular la recompensa necesitamos los sensores
+            # por eso busco traerme el valor de los sensores y ya ponemos el 
+            # reward
+            s_state, _ = self.getState(data, 0)
+            reward = self.setReward(s_state, done, action)
+        else:
+            reward = self.setReward(state, done, action)
 
         return np.asarray(state), reward, done
 
@@ -262,9 +275,8 @@ class Env():
         self.picked_coins = np.zeros(self.number_total_coins)
         self.picked_coins_older_value = np.zeros(self.number_total_coins)
 
-        state, done = self.getState(data)
+        state, done = self.getState(data, self.using_camera)
         
         #rospy.loginfo("Salimos a reset!!")
-
 
         return np.asarray(state)

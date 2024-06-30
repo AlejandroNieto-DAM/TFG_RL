@@ -44,32 +44,36 @@ class TrainPPO:
         # Maybe in PPo doesnt work [self.state_size] and we have to change it to self.state_size
         
     def train(self):
+        
         for e in range(self.episodes):
             done = False
             state = self.env.reset()
             score = 0
             for t in range(6000):
+                #self.env.pause_simulation()
                 action, prob, val = self.agent.choose_action(state)
 
+                self.env.unpause_simulation()
                 state_, reward, done = self.env.step(action)
+                self.env.pause_simulation()
 
                 self.n_steps += 1
+                rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
 
+                
                 self.agent.store_transition(state, action,
                                     prob, val, reward, done)
 
                 if self.n_steps % self.N == 0:
-                    self.env.pause_simulation()
+                    
                     self.agent.learn()
-                    self.env.unpause_proxy()
+                    #self.env.unpause_proxy()
                     self.learn_iters += 1
 
                 state = state_
                 score += reward
 
-                rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
-
-
+                
                 if t >= 500:
                     rospy.loginfo("Time out!!")
                     done = True
@@ -84,3 +88,5 @@ class TrainPPO:
                         self.agent.save_models()
 
                     break
+
+                

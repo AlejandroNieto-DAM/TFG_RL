@@ -1,4 +1,6 @@
 import numpy as np
+import tensorflow as tf
+import cv2
 
 class ReplayBuffer():
     def __init__(self, max_size, shape, n_actions, using_camera):
@@ -62,7 +64,7 @@ class ReplayBuffer():
         return rgb_image
 
     def augment_image(self, image, num_augments=5):
-        image = tf.expand_dims(image, axis=0)
+        #image = tf.expand_dims(image, axis=0)
         augmented_images = []
         for _ in range(num_augments):
             augmented_image = datagen.flow(image, batch_size=1)[0]

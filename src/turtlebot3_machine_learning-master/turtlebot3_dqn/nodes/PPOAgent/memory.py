@@ -1,5 +1,7 @@
 import numpy as np
 from tensorflow.keras.preprocessing.image import ImageDataGenerator, img_to_array
+import tensorflow as tf
+import cv2
 
 class Memory:
     def __init__(self, batch_size, using_camera):
@@ -27,18 +29,18 @@ class Memory:
 
         return np.array(self.states), np.array(self.probs), np.array(self.vals), np.array(self.actions), np.array(self.rewards), np.array(self.dones), indices_batches
 
-    def store_data(self, states, probs, vals, actions, rewards, dones):
+    def store_data(self, state, prob, val, action, reward, done):
 
         # Hay que testar esto
         if self.using_camera:
-            self.store_data_camera(states, probs, vals, actions, rewards, dones)
+            self.store_data_camera(state, prob, val, action, reward, done)
         else:
-            self.states.append(states)
-            self.probs.append(probs)
-            self.vals.append(vals)
-            self.actions.append(actions)
-            self.rewards.append(rewards)
-            self.dones.append(dones)
+            self.states.append(state)
+            self.probs.append(prob)
+            self.vals.append(val)
+            self.actions.append(action)
+            self.rewards.append(reward)
+            self.dones.append(done)
     
     def clear_data(self):
         self.states = []
@@ -56,14 +58,7 @@ class Memory:
         return rgb_image
 
     def augment_image(self, image, num_augments=5):
-        image = tf.expand_dims(image, axis=0)
-        augmented_images = []
-        for _ in range(num_augments):
-            augmented_image = datagen.flow(image, batch_size=1)[0]
-            augmented_images.append(tf.squeeze(augmented_image, axis=0))
-        return augmented_images
         
-    def store_data_camera(self, states, probs, vals, actions, rewards, dones):
         # Debo mirar algunos de estos parámetros porque no se que hacen?
         # Paula tiene algo de noise pero no aparece como un parámetro tengo que mirarrrr
         datagen = ImageDataGenerator(
@@ -77,28 +72,37 @@ class Memory:
             fill_mode='nearest'
         )
 
+        image = tf.expand_dims(image, axis=0)
+        augmented_images = []
+        for _ in range(num_augments):
+            augmented_image = datagen.flow(image, batch_size=1)[0]
+            augmented_images.append(tf.squeeze(augmented_image, axis=0))
+        return augmented_images
+        
+    def store_data_camera(self, state, prob, val, action, reward, done):
+        
         # Esto lo hago debido a que cada estado va ligado a su recompensa, entonces
         # si hago data augmentation tengo que ligar las imagenes nuevas con sus probabilidades y
         # demás para que todo este ligado ALL HAVE SENSEEE BELIEVE MEEE
-        processed_image = load_and_convert_image(image_path)
+        #processed_image = load_and_convert_image(image_path)
         num_augments = 5
-        augmented_images = augment_image(processed_image, num_augments)
+        augmented_images = self.augment_image(state, num_augments)
 
         # Here we save the original image
-        self.states.append(processed_image)
-        self.probs.append(probs)
-        self.vals.append(vals)
-        self.actions.append(actions)
-        self.rewards.append(rewards)
-        self.dones.append(dones)
+        self.states.append(state)
+        self.probs.append(prob)
+        self.vals.append(val)
+        self.actions.append(action)
+        self.rewards.append(reward)
+        self.dones.append(done)
 
 
-        for aug_img in augmented_image:
+        for aug_img in augmented_images:
             self.states.append(aug_img)
-            self.probs.append(probs)
-            self.vals.append(vals)
-            self.actions.append(actions)
-            self.rewards.append(rewards)
-            self.dones.append(dones)
+            self.probs.append(prob)
+            self.vals.append(val)
+            self.actions.append(action)
+            self.rewards.append(reward)
+            self.dones.append(done)
 
 
