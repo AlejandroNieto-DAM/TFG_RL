@@ -24,7 +24,7 @@ class TrainPPO:
         self.using_camera = using_camera
         self.state_size = state_size
         self.action_size = action_size
-        self.N = 3
+        self.N = N
         self.n_steps = 0
         self.learn_iters = 0
         self.score_history = []

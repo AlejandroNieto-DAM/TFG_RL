@@ -8,9 +8,10 @@
     <arg name="world_name" value="$(find turtlebot3_gazebo)/worlds/turtlebot3_stage_1.world"/>
     <arg name="paused" value="false"/>
     <arg name="use_sim_time" value="0.1"/>
-    <arg name="gui" value="true"/>
-    <arg name="headless" value="false"/>
     <arg name="debug" value="false"/>
+
+    <arg name="gui" value="true"/> <!-- We have to set this to false -->
+    <arg name="headless" value="false"/> <!-- And this to true in order to not have GUI -->
   </include>  
 
   <!--<param name="robot_description" command="$(find xacro)/xacro inorder $(find turtlebot3_description)/urdf/turtlebot3_burger_for_autorace_2020.urdf.xacro" />-->
