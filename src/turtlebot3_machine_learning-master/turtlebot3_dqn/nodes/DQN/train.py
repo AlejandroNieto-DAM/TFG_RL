@@ -35,13 +35,21 @@ class TrainDQN:
         self.env = env
 
         self.agent = DQN(input_dims=[state_size], n_actions = action_size, using_camera = self.using_camera)
+
+        
         
     def train(self):
+        #self.agent.load_models()
+
         for e in range(self.episodes):
             done = False
             state = self.env.reset()
             score = 0
+
+            rospy.loginfo("Running episode" + str(e))
+
             for t in range(6000):
+
                 action = self.agent.choose_action(state)
 
                 state_, reward, done = self.env.step(action)
@@ -50,7 +58,7 @@ class TrainDQN:
 
                 self.agent.store_data(state, action, reward, state_, done)
 
-                if self.n_steps % N == 0:
+                if self.n_steps % self.N == 0:
                     self.env.pause_simulation()
                     self.agent.learn()
                     self.env.unpause_proxy()
@@ -59,20 +67,16 @@ class TrainDQN:
                 state = state_
                 score += reward
 
-                rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
+                rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
 
 
                 if t >= 500:
                     rospy.loginfo("Time out!!")
                     done = True
 
+                if e % 10 == 0:        
+                 self.agent.save_models()
 
                 if done:
-                    self.score_history.append(score)
-                    avg_score = np.mean(self.score_history[-100:])
-
-                    if avg_score > self.best_score:
-                        self.best_score = avg_score
-                        self.agent.save_models()
-
                     break
+

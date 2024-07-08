@@ -21,7 +21,7 @@ class PPOAgent:
         self.gae_lambda = gae_lambda
 
 
-        if using_camera:
+        if self.using_camera:
             self.actor = CNNActor(n_actions=n_actions, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=256, name='cnn_actor')
             self.critic = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=fc1_dims, fc2_dims=fc2_dims, name="critic")
         else:
@@ -37,12 +37,12 @@ class PPOAgent:
         self.memory.store_data(state, action, probs, vals, reward, done)
 
     def save_models(self):
-        self.actor.save_weights(self.actor.save_directory)
-        self.critic.save_weights(self.critic.save_directory)
+        self.actor.save_weights(self.actor.save_directory + ".h5")
+        self.critic.save_weights(self.critic.save_directory + ".h5")
 
     def load_models(self):
-        self.actor.load_weights(self.actor.save_directory)
-        self.critic.load_weights(self.critic.save_directory)
+        self.actor.load_weights(self.actor.save_directory + ".h5")
+        self.critic.load_weights(self.critic.save_directory + ".h5")
 
     def choose_action(self, observation):
         state = tf.convert_to_tensor([observation])

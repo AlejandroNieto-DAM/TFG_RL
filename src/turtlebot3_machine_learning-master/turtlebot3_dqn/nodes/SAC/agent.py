@@ -55,18 +55,18 @@ class SAC():
             a.assign(tau * b + (1 - tau) * a)
 
     def save_models(self):
-        self.policy.save_weights(self.policy.save_directory)
-        self.q1.save_weights(self.q1.save_directory)
-        self.q2.save_weights(self.q2.save_directory)
-        self.target_q1.save_weights(self.target_q1.save_directory)
-        self.target_q2.save_weights(self.target_q2.save_directory)
+        self.policy.save_weights(self.policy.save_directory + ".h5")
+        self.q1.save_weights(self.q1.save_directory + ".h5")
+        self.q2.save_weights(self.q2.save_directory + ".h5")
+        self.target_q1.save_weights(self.target_q1.save_directory + ".h5")
+        self.target_q2.save_weights(self.target_q2.save_directory + ".h5")
 
     def load_models(self):
-        self.policy.load_weights(self.policy.save_directory)
-        self.q1.load_weights(self.q1.save_directory)
-        self.q2.load_weights(self.q2.save_directory)
-        self.target_q1.load_weights(self.target_q1.save_directory)
-        self.target_q2.load_weights(self.target_q2.save_directory)
+        self.policy.load_weights(self.policy.save_directory + ".h5")
+        self.q1.load_weights(self.q1.save_directory + ".h5")
+        self.q2.load_weights(self.q2.save_directory + ".h5")
+        self.target_q1.load_weights(self.target_q1.save_directory + ".h5")
+        self.target_q2.load_weights(self.target_q2.save_directory + ".h5")
 
     def learn(self):
 

@@ -17,6 +17,8 @@ if __name__ == '__main__':
     using_camera = rospy.get_param("using_camera", 0)
     algorithm = rospy.get_param("algorithm", "DQN")
 
+    laser_size = 24
+
     # 360 is the size of LIDAR (360 lasers) we add 2 values of angle and distance to goal
     # the other 2 values are the angle and distance of the closer obstacle and we will add also
     # the distance to each coin so we add the number of coins
@@ -25,11 +27,11 @@ if __name__ == '__main__':
         # Should use something like this?
         state_size = [480, 640, 3]
     else:
-        state_size = 360 + 2 + 2 + number_of_coins
+        state_size = laser_size + 2 + 2 + number_of_coins
     
     action_size = 5
 
-    env = Env(action_size, using_camera, number_of_coins)
+    env = Env(action_size, using_camera, number_of_coins, laser_size)
 
     if algorithm == "SAC":
         train_instance = TrainSAC(state_size = state_size, action_size=action_size, env=env, using_camera = using_camera)

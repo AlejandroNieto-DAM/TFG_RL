@@ -38,20 +38,19 @@ bridge = CvBridge()
 class Env():
     def __init__(self, action_size):
 
+        self.number_total_coins = 1
+
         self.goal_x = 0
         self.goal_y = 0
 
-        self.coin_x = 0
-        self.coin_y = 0
 
         self.heading = 0
         self.action_size = action_size
 
         self.initGoal = True
-        self.initCoin = True
 
         self.get_goalbox = False
-        self.get_coin = False
+        
 
         self.position = Pose()
         self.pub_cmd_vel = rospy.Publisher('cmd_vel', Twist, queue_size=5)
@@ -61,16 +60,22 @@ class Env():
         self.unpause_proxy = rospy.ServiceProxy('gazebo/unpause_physics', Empty)
         self.pause_proxy = rospy.ServiceProxy('gazebo/pause_physics', Empty)
 
-        self.position_coins_publisher =  rospy.Publisher('coin_pose', String, queue_size=5)
-
         self.respawn_goal = Respawn()
-        self.respawn_coin = RespawnCoin()
 
-        self.camera_topic = "/camera/image"
+        self.coins = []
+        self.coins_distance = np.zeros(self.number_total_coins)
+        self.picked_coins = np.zeros(self.number_total_coins)
+        self.picked_coins_older_value = np.zeros(self.number_total_coins)
+        self.init_coins = np.ones(self.number_total_coins)
 
-        # Subscribe to camera topic with callback function
-        rospy.Subscriber(self.camera_topic, Image, self.image_callback)
+        for i in range(self.number_total_coins):
+            # TODO we have to avoid when spawning different coins to take the same position
+            self.coins.append(RespawnCoin(i))
+            
+        
 
+        #self.camera_topic = "/camera/image"
+        #rospy.Subscriber(self.camera_topic, Image, self.image_callback)
         #self._check_front_camera_rgb_image_raw_ready()
 
 
@@ -117,10 +122,7 @@ class Env():
 
         return goal_distance
 
-    def getCoinDistace(self):
-        coin_distance = round(math.hypot(self.coin_x - self.position.x, self.coin_y - self.position.y), 2)
 
-        return coin_distance
 
     def getOdometry(self, odom):
         self.position = odom.pose.pose.position
@@ -141,7 +143,7 @@ class Env():
 
     def getState(self, scan):
 
-        rospy.loginfo("Entramos a getState!!")
+        #rospy.loginfo("Entramos a getState!!")
 
         scan_range = []
         heading = self.heading
@@ -163,13 +165,20 @@ class Env():
         if current_distance < 0.2:
             self.get_goalbox = True
 
-        current_distance_coin = round(math.hypot(self.coin_x - self.position.x, self.coin_y - self.position.y),2)
-        if current_distance_coin < 0.2:
-            self.get_coin = True
-        
-        rospy.loginfo("Salimos de getState!!")
+        self._get_coins_distances()
 
-        return scan_range + [heading, current_distance], done
+        for i in range(self.number_total_coins):
+            if self.coins_distance[i] < 0.2:
+                self.picked_coins[i] = 1
+        
+        #rospy.loginfo("Salimos de getState!!")
+
+        return scan_range + [heading, current_distance] + self.coins_distance.tolist(), done
+
+    def _get_coins_distances(self):
+        for i in range(self.number_total_coins):
+            self.coins_distance[i] = self.coins[i].getCoinDistace(self.position.x, self.position.y)
+    
 
     def setReward(self, state, done, action):
         yaw_reward = []
@@ -189,27 +198,34 @@ class Env():
             reward = -200
             self.pub_cmd_vel.publish(Twist())
 
+        #rospy.loginfo("MIRA A VER CUANTOS HAY " + str(self.picked_coins[0]) + " " + str(self.picked_coins_older_value[0]))
+        for i in range(self.number_total_coins):
+            # With this if we want to avoid constantly saying that we picked a coin
+            # when we did that in another step but it keeps saying that we picked it
+            if self.picked_coins[i] == 1 and self.picked_coins_older_value[i] == 0:
+                rospy.loginfo("\n\n\n\nCoin!!\n\n\n")
+                reward = 50
+                self.picked_coins_older_value[i] = 1
+                self.coins[i].deleteModel()
+                self.pub_cmd_vel.publish(Twist())
+        
         if self.get_goalbox:
             rospy.loginfo("Goal!!")
             reward = 200
-            if self.get_coin: 
-                reward *= 2
+            # With +1 we want to make sure if the robot didnt pick any coin
+            # the reward to be 0
+            reward *= np.array(self.picked_coins).sum() + 1
             self.pub_cmd_vel.publish(Twist())
             self.goal_x, self.goal_y = self.respawn_goal.getPosition(True, delete=True)
             self.goal_distance = self.getGoalDistace()
             self.get_goalbox = False
 
-        if self.get_coin:
-            rospy.loginfo("Coin!!")
-            reward = 50
-            self.pub_cmd_vel.publish(Twist())
-            #self.coin_x, self.coin_y = self.respawn_coin.getPosition(True, delete=True)
-            #self.coin_distance = self.getCoinDistace()
-            #self.get_coin = False
-
         return reward
 
     def step(self, action):
+
+        #rospy.loginfo("NTRAMOS  del step?")
+
         max_angular_vel = 1.5
         ang_vel = ((self.action_size - 1)/2 - action) * max_angular_vel * 0.5
 
@@ -228,15 +244,17 @@ class Env():
         state, done = self.getState(data)
         reward = self.setReward(state, done, action)
 
-
-        msg = String()
-        msg.data = "gira"
-        self.position_coins_publisher.publish(msg)
+        #rospy.loginfo("Salimos del step?")
 
         return np.asarray(state), reward, done
 
     def reset(self):
-        rospy.loginfo("Entramos a reset!!")
+        # Wait for the threads of the initialized coins
+        for i in range(self.number_total_coins):
+            if self.init_coins[i] == 0:
+                self.coins[i].stop_spin_move_thread()
+
+        #rospy.loginfo("Entramos a reset!!")
         rospy.wait_for_service('gazebo/reset_simulation')
         try:
             self.reset_proxy()
@@ -254,15 +272,23 @@ class Env():
             self.goal_x, self.goal_y = self.respawn_goal.getPosition()
             self.initGoal = False
 
-        if self.initCoin:
-            self.coin_x, self.coin_y = self.respawn_coin.getPosition(True, False)
-            self.initCoin = False
+        for i in range(self.number_total_coins):
+            if self.init_coins[i] == 1:
+                self.coins[i].getPosition(True, False)
+                self.coins[i].start_spin_move_thread()
+                self.init_coins[i] = 0
 
         self.goal_distance = self.getGoalDistace()
-        self.coin_distance = self.getCoinDistace()
+
+        self._get_coins_distances()
+        # We need to reset also if we picked or not the coins, when we do a reset
+        # its clear that we didnt pick any coin 
+        self.picked_coins = np.zeros(self.number_total_coins)
+        self.picked_coins_older_value = np.zeros(self.number_total_coins)
 
         state, done = self.getState(data)
         
-        rospy.loginfo("Salimos a reset!!")
+        #rospy.loginfo("Salimos a reset!!")
+
 
         return np.asarray(state)

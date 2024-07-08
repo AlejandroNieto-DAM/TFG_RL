@@ -10,7 +10,7 @@ import rospy
 class DQN():
     def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, epsilon_min = 0.01, gamma = 0.99, lr = 0.0003, epsilon = 1.0, max_size = 100000, input_dims=[364], batch_size = 64, using_camera=0):
         
-        self.using_camera = using_Camera
+        self.using_camera = using_camera
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.n_actions = n_actions
@@ -24,24 +24,32 @@ class DQN():
         self.memory = ReplayBuffer(max_size, input_dims, n_actions, using_camera)
 
         if self.using_camera:
-            self.target_model = CNNQNetwork(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
             self.model = CNNQNetwork(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="model")
+            self.target_model = CNNQNetwork(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
         else:
             self.model = QNetwork(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="model")
             self.target_model = QNetwork(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
        
         self.model.compile(optimizer=Adam(learning_rate=self.lr))
         self.target_model.compile(optimizer=Adam(learning_rate=self.lr))
-        
 
     def store_data(self, states, actions, rewards, new_states, dones):
         self.memory.store_data(states, actions, rewards, new_states, dones)
 
+    def save_models(self):
+        self.model.save_weights(self.model.save_directory)
+        self.target_model.save_weights(self.target_model.save_directory)
+
+    def load_models(self):
+        self.model.load_weights(self.model.save_directory)
+        self.target_model.load_weights(self.target_model.save_directory)
+
     def choose_action(self, observation):
+
         if np.random.rand() < self.epsilon:
             return np.random.randint(self.n_actions)
         else:
-            q_values = self.model(tf.convert_to_tensor(observation, dtype=tf.float32))
+            q_values = self.model(tf.reshape(observation, (1, observation.shape[0])))
             return np.argmax(q_values)
 
     def update_target_model(self):

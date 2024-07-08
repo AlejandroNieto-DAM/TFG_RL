@@ -10,14 +10,14 @@ from tensorflow.keras import Model
 
 
 class QNetwork(Model):
-    def __init__(self, fc1_dims, fc2_dims, n_actions, name, save_directory = 'model_weights/dqn/'):
+    def __init__(self, fc1_dims, fc2_dims, n_actions, name, save_directory = '/model_weights/dqn/'):
         super(QNetwork, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
         self.n_actions = n_actions
 
         self.model_name = name
-        self.save_directory = os.path.join(save_directory, self.model_name + '_dqn')
+        self.save_directory = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + save_directory, self.model_name + '_dqn')
         
         self.fc1 = Dense(self.fc1_dims, activation='relu')
         self.fc2 = Dense(self.fc1_dims, activation='relu')
@@ -31,7 +31,7 @@ class QNetwork(Model):
         return output
 
 class CNNQNetwork(Model):
-    def __init__(self, conv1_dims, conv2_dims, fc1_dims, fc2_dims, n_actions, name, save_directory = 'model_weights/dqn/'):
+    def __init__(self, conv1_dims, conv2_dims, fc1_dims, fc2_dims, n_actions, name, save_directory = '/model_weights/dqn/'):
         super(CNNQNetwork, self).__init__()
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims

@@ -23,10 +23,11 @@ import cv2
 bridge = CvBridge()
 
 class Env():
-    def __init__(self, action_size, using_camera, coins_to_spawn):
+    def __init__(self, action_size, using_camera, coins_to_spawn, laser_size):
 
         self.number_total_coins = coins_to_spawn
         self.using_camera = using_camera
+        self.laser_size = laser_size
 
         self.heading = 0
         self.action_size = action_size      
@@ -134,6 +135,10 @@ class Env():
                 scan_range.append(0)
             else:
                 scan_range.append(scan.ranges[i])
+
+        index_of_lasers_to_keep = np.arange(0, len(scan_range), len(scan_range)/self.laser_size, dtype=np.int64)
+        new_scan_range = [scan_range[i] for i in index_of_lasers_to_keep]
+        scan_range = new_scan_range
 
         # Detectará como obstaculo la moneda? Y si es contraproducente?
         # y confunde las monedas con cosas malas?

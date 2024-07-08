@@ -29,7 +29,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from respawnGoal import Respawn
 
 class Env():
-    def __init__(self, action_size):
+    def __init__(self, action_size, scan_range):
         self.goal_x = 0
         self.goal_y = 0
         self.heading = 0
@@ -85,7 +85,7 @@ class Env():
         if min_range > min(scan_range) > 0:
             done = True
 
-        current_distance = round(math.hypot(self.goal_x - self.position.x, self.goal_y - self.position.y),2)
+        current_distance = round(math.hypot(self.goal_x - self.position.x, self.goal_y - self.position.y), 2)
         if current_distance < 0.2:
             self.get_goalbox = True
 
