@@ -1,4 +1,4 @@
-from nodes.SAC.networks import Actor, Critic, CNNActor
+from nodes.SAC.networks import Actor, Critic, CNNActor, CNNCritic
 from nodes.SAC.memory import ReplayBuffer
 import os
 import numpy as np
@@ -8,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 import rospy
 
 class SAC():
-    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0003, gamma = 0.99, tau = 0.005, max_size = 100000, input_dims=[364], batch_size = 64, using_camera = 0):
+    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0003, gamma = 0.99, tau = 0.005, max_size = 100000, input_dims=[364], batch_size = 128, using_camera = 0):
 
         self.using_camera = using_camera
         self.fc1_dims = fc1_dims
@@ -24,13 +24,18 @@ class SAC():
 
         if self.using_camera:
             self.policy = CNNActor(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, n_actions = self.n_actions, name = "actor")  
+            self.q1 = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q1")
+            self.q2 = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q2")
+            self.target_q1 = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q1")
+            self.target_q2 = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q2")
         else:
-            self.policy = Actor(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, n_actions = self.n_actions, name = "actor")
-        
-        self.q1 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q1")
-        self.q2 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q2")
-        self.target_q1 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q1")
-        self.target_q2 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q2")
+            self.policy = Actor(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, n_actions = self.n_actions, name = "actor")
+            self.q1 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q1")
+            self.q2 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q2")
+            self.target_q1 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q1")
+            self.target_q2 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q2")
+
+      
 
         self.policy.compile(optimizer=Adam(learning_rate=alpha))
         self.q1.compile(optimizer=Adam(learning_rate=alpha))
@@ -47,8 +52,7 @@ class SAC():
 
     def choose_action(self, observation):
         action, _ = self.policy(tf.convert_to_tensor([observation], dtype=tf.float32))
-        mapped_action = (action[0, 0].numpy() + 1.0) * 2.0  # Scale to [0, 4]
-        return int(np.round(mapped_action))
+        return action[0].numpy()
 
     def update_target(self, target_weights, weights, tau):
         for (a, b) in zip(target_weights, weights):
@@ -81,6 +85,9 @@ class SAC():
         actions = tf.convert_to_tensor(action_arr, dtype=tf.float32)
         dones = tf.convert_to_tensor(dones_arr, dtype=tf.float32)
 
+        rospy.loginfo("Mira el shape del actions " + str(actions.shape))
+        rospy.loginfo("Mira el shape del states " + str(len(action_arr)))
+
         with tf.GradientTape(persistent=True) as tape:
             q1 = self.q1(states, actions)
             q2 = self.q2(states, actions)
@@ -90,7 +97,7 @@ class SAC():
             target_q1_next = self.target_q1(states_, next_action)
             target_q2_next = self.target_q2(states_, next_action)
 
-            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * tf.reduce_min(next_log_prob)
+            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
             y = rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min)
 
             critic_1_loss = tf.reduce_mean((y - tf.squeeze(q1))**2)

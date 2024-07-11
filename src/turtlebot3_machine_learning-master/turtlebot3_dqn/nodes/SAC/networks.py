@@ -24,6 +24,8 @@ class Critic(Model):
         self.q_value = Dense(1)
 
     def call(self, state, action):
+        action = tf.cast(action, tf.float32)
+        action =  tf.reshape(action, (-1, 1))
         output = tf.concat([state, action], axis=1)
         output = self.fc1(output)
         output = self.fc2(output)
@@ -45,26 +47,24 @@ class Actor(Model):
         
         self.fc1 = Dense(self.fc1_dims, activation='relu')
         self.fc2 = Dense(self.fc1_dims, activation='relu')
-        self.mean_layer = Dense(self.n_actions, activation=None)
-        self.log_std_layer = Dense(self.n_actions, activation=None)
+        self.logits_layer = Dense(self.n_actions, activation=None)
 
     def call(self, state):
         x = self.fc1(state)
         x = self.fc2(x)
-        mu = self.mean_layer(x)
-        log_std = self.log_std_layer(x)
-        log_std = tf.clip_by_value(log_std, self.noise, 1)
-        std = tf.math.exp(log_std)
+
+        logits = self.logits_layer(x)
         
-        # Sample action from normal distribution
-        dist = tfp.distributions.Normal(mu, std)
-        action = tf.tanh(dist.sample())  # Squash the action using tanh
+        # Create categorical distribution
+        dist = tfp.distributions.Categorical(logits=logits)
+        
+        # Sample action from the categorical distribution
+        action = dist.sample()
         
         # Compute log probability of the action
         log_pi = dist.log_prob(action)
-        log_pi -= tf.reduce_sum(tf.math.log(1 - action**2 + 1e-6), axis=1, keepdims=True)
-
         return action, log_pi
+
 
 # Pending to be tested
 class CNNCritic(Model):
@@ -72,7 +72,7 @@ class CNNCritic(Model):
         super(CNNCritic, self).__init__()
 
         self.model_name = name
-        self.save_directory = os.path.join(save_directory, self.model_name + '_sac')
+        self.save_directory = os.path.join(save_directory, self.model_name + '_sac.h5')
 
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
@@ -137,11 +137,9 @@ class CNNActor(Model):
         log_std = tf.clip_by_value(log_std, self.noise, 1)
         std = tf.math.exp(log_std)
         
-        # Sample action from normal distribution
         dist = tfp.distributions.Normal(mu, std)
-        action = tf.tanh(dist.sample())  # Squash the action using tanh
+        action = tf.tanh(dist.sample())  
         
-        # Compute log probability of the action
         log_pi = dist.log_prob(action)
         log_pi -= tf.reduce_sum(tf.math.log(1 - action**2 + 1e-6), axis=1, keepdims=True)
 

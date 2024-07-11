@@ -49,6 +49,7 @@ class TrainDQN:
             rospy.loginfo("Running episode" + str(e))
 
             for t in range(6000):
+                rospy.loginfo("Iter" + str(t) + " from episode " + str(e))
 
                 action = self.agent.choose_action(state)
 

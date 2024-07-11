@@ -66,10 +66,6 @@ class PPOAgent:
         for _ in range(self.n_epochs):
             state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_data()
 
-            rospy.loginfo("Reward arr" + str(reward_arr))
-            rospy.loginfo("Values arr" + str(vals_arr))
-            rospy.loginfo("Dones arr" + str(dones_arr))
-
             values = vals_arr
             advantage = np.zeros(len(reward_arr), dtype=np.float32)
 

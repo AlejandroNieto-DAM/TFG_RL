@@ -50,12 +50,10 @@ class TrainPPO:
             state = self.env.reset()
             score = 0
             for t in range(6000):
-                #self.env.pause_simulation()
+                
                 action, prob, val = self.agent.choose_action(state)
 
-                self.env.unpause_simulation()
                 state_, reward, done = self.env.step(action)
-                self.env.pause_simulation()
 
                 self.n_steps += 1
                 rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
@@ -65,9 +63,9 @@ class TrainPPO:
                                     prob, val, reward, done)
 
                 if self.n_steps % self.N == 0:
-                    
+                    self.env.pause_simulation()
                     self.agent.learn()
-                    #self.env.unpause_proxy()
+                    self.env.unpause_proxy()
                     self.learn_iters += 1
 
                 state = state_
@@ -80,13 +78,14 @@ class TrainPPO:
 
 
                 if done:
+                    """
                     self.score_history.append(score)
                     avg_score = np.mean(self.score_history[-100:])
 
                     if avg_score > self.best_score:
                         self.best_score = avg_score
                         self.agent.save_models()
-
+                    """
                     break
 
                 

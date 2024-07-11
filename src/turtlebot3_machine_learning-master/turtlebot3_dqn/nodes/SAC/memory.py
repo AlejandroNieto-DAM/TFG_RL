@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import cv2
+import rospy
 
 class ReplayBuffer():
     def __init__(self, max_size, shape, n_actions, using_camera):
@@ -15,7 +16,7 @@ class ReplayBuffer():
         self.states = np.zeros((self.mem_size, *shape))
         self.new_states = np.zeros((self.mem_size, *shape))
 
-        self.actions = np.zeros((self.mem_size, self.n_actions))
+        self.actions = np.zeros((self.mem_size))
 
         self.rewards = np.zeros((self.mem_size))
         self.dones = np.zeros((self.mem_size))
