@@ -186,7 +186,7 @@ class Env():
 
         if done:
             rospy.loginfo("Collision!!")
-            reward = -800
+            reward = -400
             self.pub_cmd_vel.publish(Twist())
 
         for i in range(self.number_total_coins):

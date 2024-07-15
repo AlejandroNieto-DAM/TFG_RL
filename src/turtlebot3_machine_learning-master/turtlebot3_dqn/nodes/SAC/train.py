@@ -17,7 +17,7 @@ from keras.optimizers import RMSprop
 from keras.layers import Dense, Dropout, Activation
 
 class TrainSAC:
-    def __init__(self, state_size = [364], action_size = 5, N = 64, env = None, episodes = 3000, using_camera = 0):
+    def __init__(self, state_size = [364], action_size = 5, N = 128, env = None, episodes = 3000, using_camera = 0):
 
         self.using_camera = using_camera
         self.state_size = state_size
@@ -50,17 +50,19 @@ class TrainSAC:
                 self.n_steps += 1
 
                 self.agent.store_data(state, action, reward, state_, done)
+                
+                rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
 
                 if self.n_steps % self.N == 0:
                     self.env.pause_simulation()
-                    self.agent.learn()
+                    q1_loss, q2_loss, actor_loss, alpha_loss = self.agent.learn()
+                    rospy.loginfo("Q1 LOSS  --> " + str(q1_loss) + " Q2 LOSS --> " + str(q2_loss)+ " ACTOR LOSS --> " + str(actor_loss)+ " ALPHA LOSS --> " + str(alpha_loss))
                     self.env.unpause_proxy()
                     self.learn_iters += 1
 
                 state = state_
                 score += reward
 
-                rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
 
 
                 if t >= 500:
@@ -74,6 +76,6 @@ class TrainSAC:
 
                     if avg_score > self.best_score:
                         self.best_score = avg_score
-                        self.agent.save_models()
+                        #self.agent.save_models()
 
                     break

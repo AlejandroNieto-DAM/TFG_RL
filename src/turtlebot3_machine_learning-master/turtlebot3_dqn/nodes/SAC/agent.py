@@ -16,9 +16,13 @@ class SAC():
         self.n_actions = n_actions
         self.batch_size = batch_size
 
-        self.alpha = alpha
+        self.alpha = tf.Variable(0.2, dtype=tf.float32)
+        self.target_entropy = -tf.constant(n_actions, dtype=tf.float32)
         self.gamma = gamma
         self.tau = tau
+
+        self.target_update_interval = 1
+        self.learn_step_counter = 0
 
         self.memory = ReplayBuffer(max_size, input_dims, n_actions, using_camera)
 
@@ -34,17 +38,14 @@ class SAC():
             self.q2 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q2")
             self.target_q1 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q1")
             self.target_q2 = Critic(fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q2")
-
       
-
         self.policy.compile(optimizer=Adam(learning_rate=alpha))
         self.q1.compile(optimizer=Adam(learning_rate=alpha))
         self.q2.compile(optimizer=Adam(learning_rate=alpha))
         self.target_q1.compile(optimizer=Adam(learning_rate=alpha))
         self.target_q2.compile(optimizer=Adam(learning_rate=alpha))
 
-        self.update_target(self.target_q1.variables, self.q1.variables, 1)
-        self.update_target(self.target_q2.variables, self.q2.variables, 1)
+        self.alpha_optimizer = tf.keras.optimizers.Adam(alpha)
 
 
     def store_data(self, state, action, reward, new_state, done):
@@ -53,10 +54,6 @@ class SAC():
     def choose_action(self, observation):
         action, _ = self.policy(tf.convert_to_tensor([observation], dtype=tf.float32))
         return action[0].numpy()
-
-    def update_target(self, target_weights, weights, tau):
-        for (a, b) in zip(target_weights, weights):
-            a.assign(tau * b + (1 - tau) * a)
 
     def save_models(self):
         self.policy.save_weights(self.policy.save_directory + ".h5")
@@ -72,6 +69,10 @@ class SAC():
         self.target_q1.load_weights(self.target_q1.save_directory + ".h5")
         self.target_q2.load_weights(self.target_q2.save_directory + ".h5")
 
+    def update_target(self, target_weights, weights, tau):
+        for (a, b) in zip(target_weights, weights):
+            a.assign(tau * b + (1 - tau) * a)
+
     def learn(self):
 
         if self.memory.counter < self.batch_size:
@@ -85,26 +86,34 @@ class SAC():
         actions = tf.convert_to_tensor(action_arr, dtype=tf.float32)
         dones = tf.convert_to_tensor(dones_arr, dtype=tf.float32)
 
-        rospy.loginfo("Mira el shape del actions " + str(actions.shape))
-        rospy.loginfo("Mira el shape del states " + str(len(action_arr)))
-
-        with tf.GradientTape(persistent=True) as tape:
+        with tf.GradientTape() as tape:
             q1 = self.q1(states, actions)
+
+            next_action, next_log_prob = self.policy(states_)
+
+            target_q1_next = self.target_q1(states_, next_action)
+            target_q2_next = self.target_q2(states_, next_action)
+            
+            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
+            y = tf.stop_gradient(rewards + self.gamma * dones * tf.squeeze(target_q_min))
+
+            critic_1_loss = tf.reduce_mean((tf.squeeze(q1) - y)**2)
+
+        with tf.GradientTape() as tape2:
             q2 = self.q2(states, actions)
 
             next_action, next_log_prob = self.policy(states_)
 
             target_q1_next = self.target_q1(states_, next_action)
             target_q2_next = self.target_q2(states_, next_action)
-
+            
             target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
-            y = rewards + self.gamma * (1 - dones) * tf.squeeze(target_q_min)
+            y = tf.stop_gradient(rewards + self.gamma * dones * tf.squeeze(target_q_min))
 
-            critic_1_loss = tf.reduce_mean((y - tf.squeeze(q1))**2)
-            critic_2_loss = tf.reduce_mean((y - tf.squeeze(q2))**2)
+            critic_2_loss = tf.reduce_mean((tf.squeeze(q2) - y)**2)
 
         critic_1_grads = tape.gradient(critic_1_loss, self.q1.trainable_variables)
-        critic_2_grads = tape.gradient(critic_2_loss, self.q2.trainable_variables)
+        critic_2_grads = tape2.gradient(critic_2_loss, self.q2.trainable_variables)
 
         self.q1.optimizer.apply_gradients(zip(critic_1_grads, self.q1.trainable_variables))
         self.q2.optimizer.apply_gradients(zip(critic_2_grads, self.q2.trainable_variables))
@@ -120,8 +129,23 @@ class SAC():
 
         actor_grads = tape_act.gradient(actor_loss, self.policy.trainable_variables)
         self.policy.optimizer.apply_gradients(zip(actor_grads, self.policy.trainable_variables))
+        """
+        with tf.GradientTape() as tape_alpha:
 
+            actions, log_probs = self.policy(states)
+
+            alpha_loss = tf.reduce_mean( - self.alpha*(log_probs + self.target_entropy))
+
+        variables = [self.alpha]
+        grads = tape_alpha.gradient(alpha_loss, variables)
+        self.alpha_optimizer.apply_gradients(zip(grads, variables))
+        """
         self.update_target(self.target_q1.variables, self.q1.variables, self.tau)
         self.update_target(self.target_q2.variables, self.q2.variables, self.tau)
 
+        #return critic_1_loss, critic_2_loss, actor_loss, alpha_loss
 
+
+
+        
+    

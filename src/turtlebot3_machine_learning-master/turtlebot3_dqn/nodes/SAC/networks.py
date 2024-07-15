@@ -24,9 +24,10 @@ class Critic(Model):
         self.q_value = Dense(1)
 
     def call(self, state, action):
-        action = tf.cast(action, tf.float32)
-        action =  tf.reshape(action, (-1, 1))
-        output = tf.concat([state, action], axis=1)
+        #action_e = tf.expand_dims(action, axis=1)
+        action_e = tf.cast(action, tf.float32)
+        action_e =  tf.reshape(action_e, (-1, 1))
+        output = tf.concat([state, action_e], axis=1)
         output = self.fc1(output)
         output = self.fc2(output)
         q_value = self.q_value(output)
@@ -34,7 +35,7 @@ class Critic(Model):
         return q_value
 
 class Actor(Model):
-    def __init__(self, fc1_dims, fc2_dims, n_actions, name, save_directory = 'model_weights/sac/'):
+    def __init__(self, fc1_dims, fc2_dims, n_actions, name, save_directory='model_weights/sac/'):
         super(Actor, self).__init__()
 
         self.model_name = name
@@ -42,29 +43,22 @@ class Actor(Model):
 
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
-        self.n_actions = 5
-        self.noise = 1e-6
-        
+        self.n_actions = n_actions
+
         self.fc1 = Dense(self.fc1_dims, activation='relu')
         self.fc2 = Dense(self.fc1_dims, activation='relu')
-        self.logits_layer = Dense(self.n_actions, activation=None)
+        self.output_layer = Dense(self.n_actions, activation='softmax')
 
     def call(self, state):
         x = self.fc1(state)
         x = self.fc2(x)
+        probs = self.output_layer(x)
 
-        logits = self.logits_layer(x)
-        
-        # Create categorical distribution
-        dist = tfp.distributions.Categorical(logits=logits)
-        
-        # Sample action from the categorical distribution
+        dist = tfp.distributions.Categorical(probs)
         action = dist.sample()
-        
-        # Compute log probability of the action
-        log_pi = dist.log_prob(action)
-        return action, log_pi
+        log_prob = dist.log_prob(action)
 
+        return action, log_prob
 
 # Pending to be tested
 class CNNCritic(Model):
@@ -98,7 +92,6 @@ class CNNCritic(Model):
         q_value = self.q_value(output)
 
         return q_value
-
 
 class CNNActor(Model):
     def __init__(self, conv1_dims, conv2_dims, fc1_dims, fc2_dims, n_actions, name, save_directory = 'model_weights/sac/'):
