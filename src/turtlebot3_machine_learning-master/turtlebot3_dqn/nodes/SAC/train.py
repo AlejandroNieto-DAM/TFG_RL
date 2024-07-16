@@ -12,6 +12,8 @@ from collections import deque
 from std_msgs.msg import Float32MultiArray
 from src.turtlebot3_dqn.environment import Env
 from nodes.SAC.agent import SAC
+from nodes.SAC.agent_v2 import Agent
+from nodes.SAC.agent_v3 import SACAgent
 from keras.models import Sequential, load_model
 from keras.optimizers import RMSprop
 from keras.layers import Dense, Dropout, Activation
@@ -34,7 +36,9 @@ class TrainSAC:
 
         self.env = env
 
-        self.agent = SAC(input_dims = [state_size], using_camera = self.using_camera)
+        #self.agent = SAC(input_dims = [state_size], using_camera = self.using_camera)
+        #self.agent = Agent(input_dims=[state_size], env=env, n_actions=5)
+        self.agent = SACAgent(5)
 
     def train(self):
         for e in range(self.episodes):
@@ -49,14 +53,16 @@ class TrainSAC:
 
                 self.n_steps += 1
 
-                self.agent.store_data(state, action, reward, state_, done)
+                self.agent.replay_buffer.add((state, action, reward, state_, done))
+
+                #self.agent.store_data(state, action, reward, state_, done)
                 
                 rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
 
                 if self.n_steps % self.N == 0:
                     self.env.pause_simulation()
-                    q1_loss, q2_loss, actor_loss, alpha_loss = self.agent.learn()
-                    rospy.loginfo("Q1 LOSS  --> " + str(q1_loss) + " Q2 LOSS --> " + str(q2_loss)+ " ACTOR LOSS --> " + str(actor_loss)+ " ALPHA LOSS --> " + str(alpha_loss))
+                    self.agent.learn()
+                    #rospy.loginfo("Q1 LOSS  --> " + str(q1_loss) + " Q2 LOSS --> " + str(q2_loss)+ " ACTOR LOSS --> " + str(actor_loss))
                     self.env.unpause_proxy()
                     self.learn_iters += 1
 
@@ -71,11 +77,13 @@ class TrainSAC:
 
 
                 if done:
+                    rospy.loginfo("Mira el escore --> " + str(score))
+                    """
                     self.score_history.append(score)
                     avg_score = np.mean(self.score_history[-100:])
 
                     if avg_score > self.best_score:
                         self.best_score = avg_score
                         #self.agent.save_models()
-
+                    """
                     break

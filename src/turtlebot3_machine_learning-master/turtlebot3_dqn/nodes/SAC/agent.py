@@ -8,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 import rospy
 
 class SAC():
-    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0003, gamma = 0.99, tau = 0.005, max_size = 100000, input_dims=[364], batch_size = 128, using_camera = 0):
+    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0003, gamma = 0.99, tau = 0.01, max_size = 100000, input_dims=[364], batch_size = 128, using_camera = 0):
 
         self.using_camera = using_camera
         self.fc1_dims = fc1_dims
@@ -70,8 +70,10 @@ class SAC():
         self.target_q2.load_weights(self.target_q2.save_directory + ".h5")
 
     def update_target(self, target_weights, weights, tau):
+        new_w = []
         for (a, b) in zip(target_weights, weights):
-            a.assign(tau * b + (1 - tau) * a)
+            new_w.append(tau * b + (1 - tau) * a)
+        return new_w
 
     def learn(self):
 
@@ -86,7 +88,8 @@ class SAC():
         actions = tf.convert_to_tensor(action_arr, dtype=tf.float32)
         dones = tf.convert_to_tensor(dones_arr, dtype=tf.float32)
 
-        with tf.GradientTape() as tape:
+
+        with tf.GradientTape() as tape, tf.GradientTape() as tape2:
             q1 = self.q1(states, actions)
 
             next_action, next_log_prob = self.policy(states_)
@@ -99,17 +102,7 @@ class SAC():
 
             critic_1_loss = tf.reduce_mean((tf.squeeze(q1) - y)**2)
 
-        with tf.GradientTape() as tape2:
             q2 = self.q2(states, actions)
-
-            next_action, next_log_prob = self.policy(states_)
-
-            target_q1_next = self.target_q1(states_, next_action)
-            target_q2_next = self.target_q2(states_, next_action)
-            
-            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
-            y = tf.stop_gradient(rewards + self.gamma * dones * tf.squeeze(target_q_min))
-
             critic_2_loss = tf.reduce_mean((tf.squeeze(q2) - y)**2)
 
         critic_1_grads = tape.gradient(critic_1_loss, self.q1.trainable_variables)
@@ -119,31 +112,34 @@ class SAC():
         self.q2.optimizer.apply_gradients(zip(critic_2_grads, self.q2.trainable_variables))
 
         with tf.GradientTape() as tape_act:
-            actions, log_probs = self.policy(states)
-            q1_policy = self.q1(states, actions)
-            q2_policy = self.q2(states, actions)
+            new_actions, new_log_probs = self.policy(states)
+            q1_policy = self.q1(states, new_actions)
+            q2_policy = self.q2(states, new_actions)
 
             min_q_policy = tf.minimum(q1_policy, q2_policy)
 
-            actor_loss = tf.reduce_mean(self.alpha * log_probs - min_q_policy)
-
+            #actor_loss = tf.reduce_mean(self.alpha * new_log_probs - min_q_policy)
+            actor_loss = tf.reduce_mean(self.alpha * new_log_probs - min_q_policy)
+        
         actor_grads = tape_act.gradient(actor_loss, self.policy.trainable_variables)
         self.policy.optimizer.apply_gradients(zip(actor_grads, self.policy.trainable_variables))
-        """
+        
         with tf.GradientTape() as tape_alpha:
-
-            actions, log_probs = self.policy(states)
-
+            _ , log_probs = self.policy(states)
             alpha_loss = tf.reduce_mean( - self.alpha*(log_probs + self.target_entropy))
 
-        variables = [self.alpha]
-        grads = tape_alpha.gradient(alpha_loss, variables)
-        self.alpha_optimizer.apply_gradients(zip(grads, variables))
-        """
-        self.update_target(self.target_q1.variables, self.q1.variables, self.tau)
-        self.update_target(self.target_q2.variables, self.q2.variables, self.tau)
+        grads = tape_alpha.gradient(alpha_loss, [self.alpha])
+        self.alpha_optimizer.apply_gradients(zip(grads, [self.alpha]))
 
-        #return critic_1_loss, critic_2_loss, actor_loss, alpha_loss
+        
+        
+        tq1_w = self.update_target(self.target_q1.variables, self.q1.variables, self.tau)
+        self.target_q1.set_weights(tq1_w)
+        tq2_w = self.update_target(self.target_q2.variables, self.q2.variables, self.tau)
+        self.target_q2.set_weights(tq2_w)
+
+
+        return critic_1_loss, critic_2_loss, actor_loss, alpha_loss
 
 
 
