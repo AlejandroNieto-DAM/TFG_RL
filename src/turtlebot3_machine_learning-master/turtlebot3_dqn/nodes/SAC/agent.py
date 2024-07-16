@@ -16,8 +16,10 @@ class SAC():
         self.n_actions = n_actions
         self.batch_size = batch_size
 
-        self.alpha = tf.Variable(0.2, dtype=tf.float32)
-        self.target_entropy = -tf.constant(n_actions, dtype=tf.float32)
+        self.log_alpha = tf.Variable(0.0, dtype=tf.float32)
+        self.alpha = tf.exp(self.log_alpha)
+        #self.alpha = tf.Variable(0.2, dtype=tf.float32)
+        self.target_entropy = -np.prod(n_actions)
         self.gamma = gamma
         self.tau = tau
 
@@ -45,7 +47,7 @@ class SAC():
         self.target_q1.compile(optimizer=Adam(learning_rate=alpha))
         self.target_q2.compile(optimizer=Adam(learning_rate=alpha))
 
-        self.alpha_optimizer = tf.keras.optimizers.Adam(alpha)
+        self.target_alpha_optimizer = tf.keras.optimizers.Adam(alpha)
 
 
     def store_data(self, state, action, reward, new_state, done):
@@ -53,7 +55,19 @@ class SAC():
 
     def choose_action(self, observation):
         action, _ = self.policy(tf.convert_to_tensor([observation], dtype=tf.float32))
-        return action[0].numpy()
+        return self.parse_action_from_policy(action)[0]
+
+    def parse_action_from_policy(self, actions):
+        tensor = actions
+        values = tensor.numpy().reshape(-1, 5)
+
+        probabilities = tf.nn.softmax(values, axis=1).numpy()
+
+        selected_actions = []
+        for i, prob in enumerate(probabilities):
+            selected_actions.append(np.random.choice(len(prob), p=prob))
+            
+        return selected_actions
 
     def save_models(self):
         self.policy.save_weights(self.policy.save_directory + ".h5")
@@ -90,20 +104,21 @@ class SAC():
 
 
         with tf.GradientTape() as tape, tf.GradientTape() as tape2:
+            next_actions, next_log_probs = self.policy(states_)
+            next_actions = self.parse_action_from_policy(next_actions)
+
+            target_q1_next = self.target_q1(states_, next_actions)
+            target_q2_next = self.target_q2(states_, next_actions)
+
+            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_probs
+
+            y = rewards + self.gamma * (1-dones) * target_q_min
+
             q1 = self.q1(states, actions)
-
-            next_action, next_log_prob = self.policy(states_)
-
-            target_q1_next = self.target_q1(states_, next_action)
-            target_q2_next = self.target_q2(states_, next_action)
-            
-            target_q_min = tf.minimum(target_q1_next, target_q2_next) - self.alpha * next_log_prob
-            y = tf.stop_gradient(rewards + self.gamma * dones * tf.squeeze(target_q_min))
-
-            critic_1_loss = tf.reduce_mean((tf.squeeze(q1) - y)**2)
-
             q2 = self.q2(states, actions)
-            critic_2_loss = tf.reduce_mean((tf.squeeze(q2) - y)**2)
+
+            critic_1_loss = tf.keras.losses.MSE(target_q1_next, q1)
+            critic_2_loss = tf.keras.losses.MSE(target_q2_next, q2)
 
         critic_1_grads = tape.gradient(critic_1_loss, self.q1.trainable_variables)
         critic_2_grads = tape2.gradient(critic_2_loss, self.q2.trainable_variables)
@@ -113,12 +128,13 @@ class SAC():
 
         with tf.GradientTape() as tape_act:
             new_actions, new_log_probs = self.policy(states)
+            new_actions = self.parse_action_from_policy(new_actions)
+
             q1_policy = self.q1(states, new_actions)
             q2_policy = self.q2(states, new_actions)
 
             min_q_policy = tf.minimum(q1_policy, q2_policy)
 
-            #actor_loss = tf.reduce_mean(self.alpha * new_log_probs - min_q_policy)
             actor_loss = tf.reduce_mean(self.alpha * new_log_probs - min_q_policy)
         
         actor_grads = tape_act.gradient(actor_loss, self.policy.trainable_variables)
@@ -126,18 +142,16 @@ class SAC():
         
         with tf.GradientTape() as tape_alpha:
             _ , log_probs = self.policy(states)
-            alpha_loss = tf.reduce_mean( - self.alpha*(log_probs + self.target_entropy))
+            alpha_loss = tf.reduce_mean( - self.log_alpha*(log_probs + self.target_entropy))
 
-        grads = tape_alpha.gradient(alpha_loss, [self.alpha])
-        self.alpha_optimizer.apply_gradients(zip(grads, [self.alpha]))
-
-        
+        grads = tape_alpha.gradient(alpha_loss, [self.log_alpha])
+        self.target_alpha_optimizer.apply_gradients(zip(grads, [self.log_alpha]))
+        self.alpha = tf.exp(self.log_alpha)
         
         tq1_w = self.update_target(self.target_q1.variables, self.q1.variables, self.tau)
         self.target_q1.set_weights(tq1_w)
         tq2_w = self.update_target(self.target_q2.variables, self.q2.variables, self.tau)
         self.target_q2.set_weights(tq2_w)
-
 
         return critic_1_loss, critic_2_loss, actor_loss, alpha_loss
 

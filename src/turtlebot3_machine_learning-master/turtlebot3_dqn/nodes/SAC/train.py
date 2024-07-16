@@ -36,9 +36,9 @@ class TrainSAC:
 
         self.env = env
 
-        #self.agent = SAC(input_dims = [state_size], using_camera = self.using_camera)
+        self.agent = SAC(input_dims = [state_size], using_camera = self.using_camera)
         #self.agent = Agent(input_dims=[state_size], env=env, n_actions=5)
-        self.agent = SACAgent(5)
+        #self.agent = SACAgent(5)
 
     def train(self):
         for e in range(self.episodes):
@@ -53,9 +53,9 @@ class TrainSAC:
 
                 self.n_steps += 1
 
-                self.agent.replay_buffer.add((state, action, reward, state_, done))
+                #self.agent.replay_buffer.add((state, action, reward, state_, done))
 
-                #self.agent.store_data(state, action, reward, state_, done)
+                self.agent.store_data(state, action, reward, state_, done)
                 
                 rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
 

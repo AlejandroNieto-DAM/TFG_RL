@@ -24,7 +24,7 @@ class Critic(Model):
         self.q_value = Dense(1)
 
     def call(self, state, action):
-        #action_e = tf.expand_dims(action, axis=1)
+        action_e = tf.expand_dims(action, axis=1)
         action_e = tf.cast(action, tf.float32)
         action_e =  tf.reshape(action_e, (-1, 1))
         output = tf.concat([state, action_e], axis=1)
@@ -47,18 +47,28 @@ class Actor(Model):
 
         self.fc1 = Dense(self.fc1_dims, activation='relu')
         self.fc2 = Dense(self.fc1_dims, activation='relu')
-        self.output_layer = Dense(self.n_actions, activation='softmax')
+        self.mu = Dense(self.n_actions, activation=None)
+        self.sigma = Dense(self.n_actions, activation=None)
 
     def call(self, state):
         x = self.fc1(state)
         x = self.fc2(x)
-        probs = self.output_layer(x)
 
-        dist = tfp.distributions.Categorical(probs)
-        action = dist.sample()
-        log_prob = dist.log_prob(action)
+        mu = self.mu(x)
+        sigma = self.sigma(x)
 
-        return action, log_prob
+        sigma = tf.clip_by_value(sigma, 1e-6, 1)
+
+        probabilities = tfp.distributions.Normal(mu, sigma)
+        actions = probabilities.sample() # + something else if you want to implement
+
+        action = tf.math.tanh(actions)
+        log_probs = probabilities.log_prob(actions)
+        log_probs -= tf.math.log(1-tf.math.pow(action,2)+1e-6)
+        log_probs = tf.math.reduce_sum(log_probs, axis=1, keepdims=True)
+
+        return action, log_probs
+
 
 # Pending to be tested
 class CNNCritic(Model):
