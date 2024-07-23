@@ -175,7 +175,6 @@ class Env():
         yaw_reward = []
         current_distance = state[-3] 
         heading = state[-4]
-        self.goal_distance = self.getGoalDistace()
         
         for i in range(5):
             angle = -pi / 4 + heading + (pi / 8 * i) + pi / 2
@@ -187,7 +186,7 @@ class Env():
 
         if done:
             rospy.loginfo("Collision!!")
-            reward = -1200
+            reward = -200
             self.pub_cmd_vel.publish(Twist())
 
         for i in range(self.number_total_coins):
@@ -202,7 +201,7 @@ class Env():
         
         if self.get_goalbox:
             rospy.loginfo("Goal!!")
-            reward = 800
+            reward = 200
             # With +1 we want to make sure if the robot didnt pick any coin
             # the reward to be 0
             reward *= np.array(self.picked_coins).sum() + 1

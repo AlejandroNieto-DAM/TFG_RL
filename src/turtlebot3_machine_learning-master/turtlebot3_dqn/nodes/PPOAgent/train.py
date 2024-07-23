@@ -56,7 +56,7 @@ class TrainPPO:
                 state_, reward, done = self.env.step(action)
 
                 self.n_steps += 1
-                rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
+                #rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
 
                 
                 self.agent.store_transition(state, action,
@@ -64,7 +64,8 @@ class TrainPPO:
 
                 if self.n_steps % self.N == 0:
                     self.env.pause_simulation()
-                    self.agent.learn()
+                    actor_loss, critic_loss = self.agent.learn()
+                    rospy.loginfo("MIRA LA LOSS DEL ACOTR " + str(actor_loss) + " MIRA LA DEL CRITIC " + str(critic_loss))
                     self.env.unpause_proxy()
                     self.learn_iters += 1
 

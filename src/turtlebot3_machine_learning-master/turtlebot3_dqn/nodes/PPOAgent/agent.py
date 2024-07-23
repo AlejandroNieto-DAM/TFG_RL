@@ -61,7 +61,8 @@ class PPOAgent:
 
     def learn(self):
 
-        
+        actor_loss_mean = []
+        critic_loss_mean = []
         for _ in range(self.n_epochs):
             state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_data()
 
@@ -101,6 +102,9 @@ class PPOAgent:
                     returns = advantage[batch] + vals_arr[batch]
                     critic_loss = tf.reduce_mean(tf.square(returns - critic_value))
 
+                    actor_loss_mean.append(actor_loss)
+                    critic_loss_mean.append(critic_loss)
+
                 actor_params = self.actor.trainable_variables
                 actor_grads = tape.gradient(actor_loss, actor_params)
                 self.actor.optimizer.apply_gradients(zip(actor_grads, actor_params))
@@ -110,4 +114,6 @@ class PPOAgent:
                 self.critic.optimizer.apply_gradients(zip(critic_grads, critic_params))
 
         self.memory.clear_data()
+
+        return np.array(actor_loss_mean).mean(), np.array(critic_loss_mean).mean()
 
