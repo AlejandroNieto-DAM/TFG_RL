@@ -2,6 +2,9 @@ import numpy as np
 import tensorflow as tf
 import cv2
 from keras.preprocessing.image import ImageDataGenerator
+import torch
+import rospy
+import os
 
 class ReplayBuffer():
     def __init__(self, batch_size, using_camera):
@@ -28,9 +31,26 @@ class ReplayBuffer():
             fill_mode='nearest'
         )
 
-        
     def get_data(self):
-        return np.array(self.states), np.array(self.actions), np.array(self.rewards), np.array(self.new_states), np.array(self.dones)
+
+        if not self.using_camera:        
+            states = torch.FloatTensor(np.array(self.states)).detach()
+            next_states = torch.FloatTensor(np.array(self.new_states)).detach()
+            rewards = torch.FloatTensor(np.array(self.rewards)).detach()
+            actions = torch.FloatTensor(np.array(self.actions)).detach()
+            dones = torch.FloatTensor(np.array(self.dones)).detach()
+        else:
+      
+            np_states = np.stack(self.states)
+            np_states_ = np.stack(self.new_states)
+
+            states = torch.FloatTensor(np_states).detach()
+            next_states = torch.FloatTensor(np_states_).detach()
+            rewards = torch.FloatTensor(np.array(self.rewards)).detach()
+            actions = torch.FloatTensor(np.array(self.actions)).detach()
+            dones = torch.FloatTensor(np.array(self.dones)).detach()
+
+        return states, actions, rewards, next_states,  dones
     
     def generate_batches(self):
         indices_muestras = np.arange(len(self.states))
@@ -48,28 +68,19 @@ class ReplayBuffer():
 
 
     def store_data(self, state, action, reward, new_state, done):
+
+        self.states.append(state)
+        self.actions.append(action)
+        self.rewards.append(reward)
+        self.new_states.append(new_state)
+        self.dones.append(done)
         
-        if self.using_camera:
-            self.store_data_camera(state, action, reward, new_state, done)
-        else:
-            self.states.append(state)
-            self.actions.append(action)
-            self.rewards.append(reward)
-            self.new_states.append(new_state)
-            self.dones.append(done)
-    
     def clear_data(self):
         self.states = []
         self.actions = []
         self.rewards = []
         self.new_states = []
         self.dones = []
-
-    def load_and_convert_image(self, image):
-        bgr_image = image
-        rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
-        rgb_image = tf.image.convert_image_dtype(rgb_image, tf.float32)
-        return rgb_image
 
     def augment_image(self, image, num_augments=5):
         #image = tf.expand_dims(image, axis=0)
@@ -85,24 +96,25 @@ class ReplayBuffer():
         # si hago data augmentation tengo que ligar las imagenes nuevas con sus probabilidades y
         # demás para que todo este ligado ALL HAVE SENSEEE BELIEVE MEEE
         image_path = state
-        processed_image = self.load_and_convert_image(image_path)
+        #processed_image = self.load_and_convert_image(image_path)
+        processed_image = image_path
         num_augments = 5
-        augmented_images = self.augment_image(processed_image, num_augments)
+        #augmented_images = self.augment_image(processed_image, num_augments)
 
         # Here we store the original image
-        
-        self.states.append(processed_image)
+        self.states.append(state)
         self.actions.append(action)
         self.rewards.append(reward)
         self.new_states.append(new_state)
         self.dones.append(done)
-
+        
+        """
         for aug_img in augmented_images:
-            
-            self.states.append(aug_img)
+
+            self.states.append(torch.from_numpy(aug_img.numpy()))
             self.actions.append(action)
             self.rewards.append(reward)
-            self.new_states.append(new_state)
+            self.new_states.append(torch.from_numpy(new_state.numpy()))
             self.dones.append(done)
-
+        """
 

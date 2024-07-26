@@ -40,7 +40,6 @@ class TrainSAC:
             while not done:
 
                 action = self.agent.choose_action(state)
-
                 state_, reward, done = self.env.step(action)
 
                 self.agent.store_data(state, action, reward, state_, done)
@@ -64,7 +63,6 @@ class TrainSAC:
             self.env.pause_simulation()
             c1_loss, c2_loss, a_loss, alpha_loss = self.agent.learn()
             self.env.unpause_proxy()
-
             
             if avg_score > self.best_score:
                 self.best_score = avg_score

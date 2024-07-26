@@ -1,4 +1,4 @@
-from nodes.SAC.networks import Actor, Critic
+from nodes.SAC.networks import Actor, Critic, CNNActor, CNNCritic
 from nodes.SAC.memory import ReplayBuffer
 import torch
 import torch.distributions as distributions
@@ -7,6 +7,7 @@ import torch.optim as optim
 import copy
 import torch.nn.functional as F
 from torch.nn.utils import clip_grad_norm_
+import rospy
 
 def init_weights(m):
     if type(m) == torch.nn.Linear:
@@ -16,7 +17,7 @@ def init_weights(m):
 
 
 class SAC():
-    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0005, gamma = 0.99, tau = 0.005, input_dims=[364], batch_size = 256, using_camera = 0):
+    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0005, gamma = 0.99, tau = 0.005, input_dims=[364], batch_size = 128, using_camera = 0):
 
         self.using_camera = using_camera
         self.fc1_dims = fc1_dims
@@ -37,14 +38,11 @@ class SAC():
         self.memory = ReplayBuffer(batch_size, using_camera)
 
         if self.using_camera:
-            """
             self.policy = CNNActor(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, n_actions = self.n_actions, name = "actor")  
-            self.q1 = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q1")
-            self.q2 = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q2")
-            self.target_q1 = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q1")
-            self.target_q2 = CNNCritic(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q2")
-            """
-            pass
+            self.q1 = CNNCritic(input_dims = (3, 640, 480), n_actions = 5, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q1")
+            self.q2 = CNNCritic(input_dims = (3, 640, 480), n_actions = 5, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q2")
+            self.target_q1 = CNNCritic(input_dims = (3, 640, 480), n_actions = 5, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q1")
+            self.target_q2 = CNNCritic(input_dims = (3, 640, 480), n_actions = 5, conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "t_q2")
         else:
             self.policy = Actor(input_dims=input_dims, fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, n_actions = self.n_actions, name = "actor")
             self.q1 = Critic(input_dims=input_dims, n_actions=self.n_actions, fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, name = "q1")
@@ -59,18 +57,22 @@ class SAC():
         self.target_q2_optimizer=optim.Adam(self.target_q2.parameters(), lr=alpha)
         self.log_alpha_optimizer = optim.Adam([self.log_alpha], lr=alpha)
 
+        
         self.policy.apply(init_weights)
         self.q1.apply(init_weights)
         self.q2.apply(init_weights)
 
         self.target_q1.load_state_dict(self.q1.state_dict())
         self.target_q2.load_state_dict(self.q2.state_dict())
-
+        
 
     def store_data(self, state, action, reward, new_state, done):
         self.memory.store_data(state, action, reward, new_state, done)
 
     def choose_action(self, observation):
+        if self.using_camera:
+            observation = torch.from_numpy(np.copy(np.asarray(observation, dtype = np.float32)))
+
         action = self.policy.get_det_action(torch.FloatTensor(observation).unsqueeze(0))
         return action.numpy()[0]
 
@@ -94,6 +96,7 @@ class SAC():
         q1 = self.q1(states)   
         q2 = self.q2(states)
         min_Q = torch.min(q1,q2)
+
         actor_loss = (action_probs * (alpha * log_pis - min_Q )).sum(1).mean()
         log_action_pi = torch.sum(log_pis * action_probs, dim=1)
         return actor_loss, log_action_pi
@@ -104,32 +107,33 @@ class SAC():
 
     def learn(self):
 
-        state_arr, action_arr, reward_arr, new_state_arr, dones_arr = self.memory.get_data()
-
-        states = torch.FloatTensor(state_arr).detach()
-        next_states = torch.FloatTensor(new_state_arr).detach()
-        rewards = torch.FloatTensor(reward_arr).detach()
-        actions = torch.FloatTensor(action_arr).detach()
-        dones = torch.FloatTensor(dones_arr).detach()
+        states, actions, rewards, next_states, dones = self.memory.get_data()
 
         for _ in range(self.n_epochs):
             batches = self.memory.generate_batches()
             for batch in batches:
+                
+                batch_states = states[batch]
+                batch_next_states = next_states[batch]
+
                 with torch.no_grad():
-                    _, action_probs, log_pis = self.policy.evaluate(next_states[batch])
-                    Q_target1_next = self.target_q1(next_states[batch])
-                    Q_target2_next = self.target_q2(next_states[batch])
+                    _, action_probs, log_pis = self.policy.evaluate(batch_next_states)
+
+
+                    Q_target1_next = self.target_q1(batch_next_states)
+                    Q_target2_next = self.target_q2(batch_next_states)
                     Q_target_next = action_probs * (torch.min(Q_target1_next, Q_target2_next) - self.alpha * log_pis)
 
                     # Compute Q targets for current states (y_i)
                     Q_targets = (rewards[batch] + (self.gamma * (1 - dones[batch]) * Q_target_next.sum(dim=1))).unsqueeze(1)
+                
 
                 # Compute critic loss
-                q1 = self.q1(states[batch]).gather(1, actions[batch].long().unsqueeze(1))
-                q2 = self.q2(states[batch]).gather(1, actions[batch].long().unsqueeze(1))
+                q1 = self.q1(batch_states).gather(1, actions[batch].long().unsqueeze(1))
+                q2 = self.q2(batch_states).gather(1, actions[batch].long().unsqueeze(1))
 
-                critic1_loss = 0.5 * F.mse_loss(q1, Q_targets)
-                critic2_loss = 0.5 * F.mse_loss(q2, Q_targets)
+                critic1_loss =  0.5 * F.mse_loss(q1, Q_targets)
+                critic2_loss =  0.5 * F.mse_loss(q2, Q_targets)
 
                 # Update critics
                 # critic 1
@@ -143,26 +147,32 @@ class SAC():
                 clip_grad_norm_(self.q2.parameters(), self.clip_grad_param)
                 self.q2_optimizer.step()
 
+
                 current_alpha = copy.deepcopy(self.alpha)
-                actor_loss, log_pis = self.update_policy(states[batch], current_alpha)
+                actor_loss, log_pis = self.update_policy(batch_states, current_alpha)
                 self.policy_optimizer.zero_grad()
                 actor_loss.backward()
                 self.policy_optimizer.step()
-                
+      
                 # Compute alpha loss
                 alpha_loss = - (self.log_alpha.exp() * (log_pis.cpu() + self.target_entropy).detach().cpu()).mean()
                 self.log_alpha_optimizer.zero_grad()
                 alpha_loss.backward()
                 self.log_alpha_optimizer.step()
                 self.alpha = self.log_alpha.exp().detach()
-                
+              
                 # ----------------------- update target networks ----------------------- #
+
                 self.soft_update(self.q1, self.target_q1)
                 self.soft_update(self.q2, self.target_q2)
 
+                #rospy.loginfo("FINNN")
+
+
         self.memory.clear_data()
 
-        return critic1_loss, critic2_loss, actor_loss, alpha_loss
+
+        return critic1_loss, critic2_loss, actor_loss, self.alpha
 
 
 

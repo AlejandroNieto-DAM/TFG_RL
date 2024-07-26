@@ -19,6 +19,9 @@ import rospy
 import time 
 import tensorflow as tf
 import cv2
+import torch
+from torchvision import transforms
+import math
 
 bridge = CvBridge()
 
@@ -90,11 +93,13 @@ class Env():
             bgr_image = cv2_img
             rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
             rgb_image = tf.image.convert_image_dtype(rgb_image, tf.float32)
+            resized_image = tf.image.resize(rgb_image, [64, 64], method=tf.image.ResizeMethod.BILINEAR)
+            transposed_image = tf.transpose(resized_image, perm=[2, 0, 1])
+
         except CvBridgeError as e:
             rospy.loginfo("MIRA LA EXCEPTION -- " + e)
 
-        
-        self.front_camera_rgb_image_raw = rgb_image # SHape 640 x 480 x 3
+        self.front_camera_rgb_image_raw = transposed_image # SHape 640 x 480 x 3
 
     def pause_simulation(self):
         self.pause_proxy()
@@ -121,12 +126,13 @@ class Env():
 
     def getState(self, scan, using_camera):
 
-        rospy.logdebug("Entramos en getState")
+        #rospy.logdebug("Entramos en getState")
 
         scan_range = []
         heading = self.heading
-        min_range = 0.13
+        #min_range = 0.13
         done = False
+        min_range = 0.2
 
         for i in range(len(scan.ranges)):
             if scan.ranges[i] == float('Inf'):
@@ -157,17 +163,17 @@ class Env():
             if self.coins_distance[i] < 0.2:
                 self.picked_coins[i] = 1
         
-        rospy.logdebug("Salimos de getState")
+        #rospy.logdebug("Salimos de getState")
 
         if using_camera:
             state = self.front_camera_rgb_image_raw
             #cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}.png".format(timestamp=rospy.Time.now()), self.front_camera_rgb_image_raw)
             #cv2.waitKey(1)
+            return state, done
         else:
             state = scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle] + self.coins_distance.tolist()
 
-        return state, done
-
+        return np.asarray(state), done
 
     def setReward(self, state, done, action):
         # TODO Podemos cambiar la heurística de la formula
@@ -175,7 +181,7 @@ class Env():
         yaw_reward = []
         current_distance = state[-3] 
         heading = state[-4]
-        
+
         for i in range(5):
             angle = -pi / 4 + heading + (pi / 8 * i) + pi / 2
             tr = 1 - 4 * math.fabs(0.5 - math.modf(0.25 + 0.5 * angle % (2 * math.pi) / math.pi)[0])
@@ -183,7 +189,9 @@ class Env():
 
         distance_rate = 2 ** (current_distance / self.goal_distance)
         reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate)
-
+        
+       
+        #reward = self.calculate_reward(state)
         if done:
             rospy.loginfo("Collision!!")
             reward = -200
@@ -240,7 +248,8 @@ class Env():
         else:
             reward = self.setReward(state, done, action)
 
-        return np.asarray(state), reward, done
+
+        return state, reward, done
 
     def reset(self):
         # Wait for the threads of the initialized coins
@@ -282,6 +291,6 @@ class Env():
 
         state, done = self.getState(data, self.using_camera)
         
-        #rospy.loginfo("Salimos a reset!!")
-
-        return np.asarray(state)
+        #rospy.loginfo("Salimos a reset!!"
+        
+        return state
