@@ -64,7 +64,7 @@ class PPOAgent:
         actor_loss_mean = []
         critic_loss_mean = []
         for _ in range(self.n_epochs):
-            state_arr, action_arr, old_prob_arr, vals_arr, reward_arr, dones_arr, batches = self.memory.generate_data()
+            state_arr, old_prob_arr, vals_arr, action_arr, reward_arr, dones_arr, batches = self.memory.generate_data()
 
             values = vals_arr
             advantage = np.zeros(len(reward_arr), dtype=np.float32)

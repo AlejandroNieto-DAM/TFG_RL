@@ -90,16 +90,16 @@ class Env():
         try:
             # Convert your ROS Image message to OpenCV2
             cv2_img = bridge.imgmsg_to_cv2(data, "bgr8")
-            bgr_image = cv2_img
-            rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
-            rgb_image = tf.image.convert_image_dtype(rgb_image, tf.float32)
+            #bgr_image = cv2_img
+            #rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+            rgb_image = tf.image.convert_image_dtype(cv2_img, tf.float32)
             resized_image = tf.image.resize(rgb_image, [64, 64], method=tf.image.ResizeMethod.BILINEAR)
-            transposed_image = tf.transpose(resized_image, perm=[2, 0, 1])
+            resized_image = resized_image / 255
 
         except CvBridgeError as e:
             rospy.loginfo("MIRA LA EXCEPTION -- " + e)
 
-        self.front_camera_rgb_image_raw = transposed_image # SHape 640 x 480 x 3
+        self.front_camera_rgb_image_raw = resized_image.numpy() # SHape 640 x 480 x 3
 
     def pause_simulation(self):
         self.pause_proxy()
@@ -130,9 +130,8 @@ class Env():
 
         scan_range = []
         heading = self.heading
-        #min_range = 0.13
-        done = False
         min_range = 0.2
+        done = False
 
         for i in range(len(scan.ranges)):
             if scan.ranges[i] == float('Inf'):
@@ -188,13 +187,13 @@ class Env():
             yaw_reward.append(tr)
 
         distance_rate = 2 ** (current_distance / self.goal_distance)
-        reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate)
+        reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate) 
         
        
         #reward = self.calculate_reward(state)
         if done:
             rospy.loginfo("Collision!!")
-            reward = -200
+            reward = -300
             self.pub_cmd_vel.publish(Twist())
 
         for i in range(self.number_total_coins):
@@ -209,7 +208,7 @@ class Env():
         
         if self.get_goalbox:
             rospy.loginfo("Goal!!")
-            reward = 200
+            reward = 300
             # With +1 we want to make sure if the robot didnt pick any coin
             # the reward to be 0
             reward *= np.array(self.picked_coins).sum() + 1

@@ -59,8 +59,7 @@ class TrainPPO:
                 #rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
 
                 
-                self.agent.store_transition(state, action,
-                                    prob, val, reward, done)
+                self.agent.store_transition(state, prob, val, action, reward, done)
 
                 if self.n_steps % self.N == 0:
                     self.env.pause_simulation()
