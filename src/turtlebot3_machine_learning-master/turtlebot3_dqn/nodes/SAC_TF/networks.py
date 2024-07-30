@@ -97,7 +97,8 @@ class CNNActor(tf.keras.Model):
         self.n_actions = n_actions
 
         self.model_name = name
-
+        input_shape = (64, 64, 3)
+        """
         self.net = tf.keras.Sequential([
             tf.keras.layers.Conv2D(conv1_dims[0], conv1_dims[1], activation='relu', padding='same', kernel_initializer=XavierInitializer()),
             tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
@@ -110,10 +111,26 @@ class CNNActor(tf.keras.Model):
             tf.keras.layers.PReLU(),
             tf.keras.layers.Dense(n_actions,  kernel_initializer=XavierInitializer())
         ])
+        """
+        self.conv1 = tf.keras.layers.Conv2D(conv1_dims[0], conv1_dims[1], activation='relu', padding='same', input_shape=input_shape)
+        self.pool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
+        self.conv2 = tf.keras.layers.Conv2D(conv2_dims[0], conv2_dims[1], activation='relu', padding='same')
+        self.pool2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
+        self.flatten = tf.keras.layers.Flatten()
+        self.fc1 = tf.keras.layers.Dense(fc1_dims, activation='relu')
+        self.fc2 = tf.keras.layers.Dense(n_actions, activation='softmax')
+
 
     def call(self, state):
-        x = self.net(state)
-        x = tf.nn.softmax(x, axis=-1)
+        #x = self.net(state)
+        #x = tf.nn.softmax(x, axis=-1)
+        x = self.conv1(state)
+        x = self.pool1(x)
+        x = self.conv2(x)
+        x = self.pool2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        x = self.fc2(x)
         return x
 
     def evaluate(self, state, epsilon=1e-8):
@@ -141,6 +158,8 @@ class CNNCritic(tf.keras.Model):
 
         self.model_name = name
 
+        input_shape = (64, 64, 3)
+        """
         self.net = tf.keras.Sequential([
             tf.keras.layers.Conv2D(conv1_dims[0], conv1_dims[1], activation='relu', padding='same', kernel_initializer=XavierInitializer()),
             tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
@@ -153,7 +172,28 @@ class CNNCritic(tf.keras.Model):
             tf.keras.layers.PReLU(),
             tf.keras.layers.Dense(n_actions,  kernel_initializer=XavierInitializer())
         ])
-        
+        """
+        self.conv1 = tf.keras.layers.Conv2D(conv1_dims[0], conv1_dims[1], activation='relu', padding='same', input_shape=input_shape)
+        self.pool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
+        self.conv2 = tf.keras.layers.Conv2D(conv2_dims[0], conv2_dims[1], activation='relu', padding='same')
+        self.pool2 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
+        self.flatten = tf.keras.layers.Flatten()
+        self.fc1 = tf.keras.layers.Dense(fc1_dims, activation='relu')
+        self.fc2 = tf.keras.layers.Dense(fc2_dims, activation='relu')
+        self.q_value = tf.keras.layers.Dense(n_actions)
+
+
     def call(self, state):
-        return self.net(state)
+        x = self.conv1(state)
+        x = self.pool1(x)
+        x = self.conv2(x)
+        x = self.pool2(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.q_value(x)
+        return x
+
+    #def call(self, state):
+        #return self.net(state)
     

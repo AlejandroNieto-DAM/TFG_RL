@@ -48,6 +48,7 @@ class Env():
         self.initGoal = True
         self.get_goalbox = False
         self.respawn_goal = Respawn()
+        self.orientation = 0
 
         self._put_coins()
         
@@ -112,6 +113,7 @@ class Env():
         orientation = odom.pose.pose.orientation
         orientation_list = [orientation.x, orientation.y, orientation.z, orientation.w]
         _, _, yaw = euler_from_quaternion(orientation_list)
+        self.orientation = yaw
 
         goal_angle = math.atan2(self.goal_y - self.position.y, self.goal_x - self.position.x)
 
@@ -145,8 +147,7 @@ class Env():
         new_scan_range = [scan_range[i] for i in index_of_lasers_to_keep]
         scan_range = new_scan_range
 
-        # Detectará como obstaculo la moneda? Y si es contraproducente?
-        # y confunde las monedas con cosas malas?
+
         obstacle_min_range = round(min(scan_range), 2)
         obstacle_angle = np.argmin(scan_range)
         if min_range > min(scan_range) > 0:
@@ -163,7 +164,6 @@ class Env():
                 self.picked_coins[i] = 1
         
         #rospy.logdebug("Salimos de getState")
-
         if using_camera:
             state = self.front_camera_rgb_image_raw
             #cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}.png".format(timestamp=rospy.Time.now()), self.front_camera_rgb_image_raw)
@@ -173,12 +173,87 @@ class Env():
             state = scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle] + self.coins_distance.tolist()
 
         return np.asarray(state), done
+    
+    """
+    def calculate_reward(self):
+        if self.position is None or self.goal_x is None or self.goal_y is None:
+            return None  # Esperar a que se obtengan los datos
 
+        # Calcular el vector desde el bot hasta el objetivo
+        dx = self.goal_x - self.position.x
+        dy = self.goal_y - self.position.y
+        distance = math.sqrt(dx**2 + dy**2)
+
+        # Vector de dirección del bot
+        bot_forward = (math.cos(self.orientation), math.sin(self.orientation))
+
+        # Calcular el producto punto
+        dot_product = dx * bot_forward[0] + dy * bot_forward[1]
+        cos_theta = dot_product / distance
+        cos_theta = max(-1.0, min(1.0, cos_theta))  # Asegurar que esté en [-1, 1]
+        theta = math.acos(cos_theta)  # Ángulo en radianes
+        theta_degrees = math.degrees(theta)  # Convertir a grados
+
+        # Determinar si el objetivo está dentro del ángulo de 60 grados
+        within_cone = 1 if theta_degrees <= 70 else 0
+
+        # Definir una penalización si no está dentro del ángulo deseado
+        penalty = 0.5
+
+        # Calcular recompensa
+        epsilon = 0.05
+        if within_cone:
+            reward = 5 / (distance + epsilon)  # Recompensa basada en la distancia
+        else:
+            reward = -5 * (distance + epsilon)  # Penalización por no estar dentro del ángulo deseado
+
+        return reward
+    
+    def calculate_combined_reward(self, collision_penalty):
+        # Calcular distancia
+        dx = self.goal_x - self.position.x
+        dy = self.goal_y - self.position.y
+        distance = math.sqrt(dx**2 + dy**2)
+
+        # Calcular ángulo relativo
+        bot_forward = (math.cos(self.orientation), math.sin(self.orientation))
+        dot_product = dx * bot_forward[0] + dy * bot_forward[1]
+        cos_theta = dot_product / distance
+        cos_theta = max(-1.0, min(1.0, cos_theta))
+        theta = math.acos(cos_theta)
+
+        theta_degrees = math.degrees(theta)  # Convertir a grados
+
+        # Determinar si el objetivo está dentro del ángulo de 60 grados
+        within_cone = 1 if theta_degrees <= 70 else 0
+
+
+
+        # Recompensa basada en la distancia y ángulo
+        reward_distance = 1 / (distance + 0.01)
+        reward_angle = -0.5 * theta
+        
+
+        if within_cone:
+            
+            reward = 2**(reward_distance + reward_angle - collision_penalty * 0.05)
+
+        else:
+            reward = math.log2(2**(reward_distance + reward_angle - collision_penalty * 0.05))
+
+        # Penalización por colisión
+
+
+        # Recompensa combinada
+        #reward = (reward_distance + reward_angle - collision_penalty * 0.05)
+
+        return reward
+    """
     def setReward(self, state, done, action):
         # TODO Podemos cambiar la heurística de la formula
         # para incentivar el estar cerca de las monedas (ahora mismo no se hace nada)
         yaw_reward = []
-        current_distance = state[-3] 
+        current_distance = state[-3]
         heading = state[-4]
 
         for i in range(5):
@@ -187,13 +262,13 @@ class Env():
             yaw_reward.append(tr)
 
         distance_rate = 2 ** (current_distance / self.goal_distance)
-        reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate) 
+        reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate)
         
        
-        #reward = self.calculate_reward(state)
+        #reward = self.calculate_combined_reward(obs_distance)
         if done:
             rospy.loginfo("Collision!!")
-            reward = -300
+            reward = -200
             self.pub_cmd_vel.publish(Twist())
 
         for i in range(self.number_total_coins):
@@ -208,7 +283,7 @@ class Env():
         
         if self.get_goalbox:
             rospy.loginfo("Goal!!")
-            reward = 300
+            reward = 200
             # With +1 we want to make sure if the robot didnt pick any coin
             # the reward to be 0
             reward *= np.array(self.picked_coins).sum() + 1

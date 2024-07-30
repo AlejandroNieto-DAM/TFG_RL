@@ -16,7 +16,7 @@ import cv2
 import tensorflow as tf
 
 class TrainSAC:
-    def __init__(self, state_size = [364], action_size = 5, N = 64, env = None, episodes = 3000, using_camera = 0):
+    def __init__(self, state_size = [364], action_size = 5, N = 128, env = None, episodes = 3000, using_camera = 0):
 
         self.using_camera = using_camera
         self.state_size = state_size
@@ -60,16 +60,22 @@ class TrainSAC:
                 # Convert the TensorFlow tensor to a NumPy array
                 #image_np = image_tensor.numpy()
 
+                
+                self.agent.store_data(state, action, reward, state_, done)
+                
+                rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
 
 
+                self.n_steps += 1
+                if self.n_steps % self.N == 0:
+                    self.env.pause_simulation()
+                    c1_loss, c2_loss, a_loss, alpha_loss = self.agent.learn()
+                    self.env.unpause_proxy()
                 #cv2.imshow('Image', state)
                 #cv2.waitKey(0)
                 #cv2.destroyAllWindows()
 
 
-                self.agent.store_data(state, action, reward, state_, done)
-                
-                rospy.loginfo("Action --> " + str(action) + " Reward --> " + str(reward))
 
                 state = state_
                 score += reward
@@ -85,9 +91,7 @@ class TrainSAC:
             self.score_history.append(score)
             avg_score = np.mean(self.score_history[-25:])
 
-            self.env.pause_simulation()
-            c1_loss, c2_loss, a_loss, alpha_loss = self.agent.learn()
-            self.env.unpause_proxy()
+            
             
             if avg_score > self.best_score:
                 self.best_score = avg_score
