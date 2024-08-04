@@ -14,7 +14,7 @@ class Actor(Model):
         self.n_actions = n_actions
 
         self.model_name = name
-        self.save_directory = os.path.join(save_directory, self.model_name + '_ppo')
+        self.save_directory =os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + save_directory, self.model_name + '_ppo')
 
         self.fc1 = Dense(fc1_dims, activation='relu')
         self.fc2 = Dense(fc2_dims, activation='relu')
@@ -34,7 +34,7 @@ class Critic(Model):
         self.fc2_dims = fc2_dims
 
         self.model_name = name
-        self.save_directory = os.path.join(save_directory, self.model_name + '_ppo')
+        self.save_directory = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + save_directory, self.model_name + '_ppo')
         
         self.fc1 = Dense(self.fc1_dims, activation='relu')
         self.fc2 = Dense(self.fc1_dims, activation='relu')
@@ -52,7 +52,7 @@ class CNNCritic(Model):
         super(CNNCritic, self).__init__()
 
         self.model_name = name
-        self.save_directory = os.path.join(save_directory, self.model_name + '_sac')
+        self.save_directory = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + save_directory, self.model_name + '_ppo_cnn')
 
         self.fc1_dims = fc1_dims
         self.fc2_dims = fc2_dims
@@ -87,7 +87,7 @@ class CNNActor(Model):
         self.n_actions = n_actions
 
         self.model_name = name
-        self.save_directory = os.path.join(save_directory, self.model_name + '_ppo')
+        self.save_directory = os.path.join(os.path.dirname(os.path.abspath(os.path.dirname(__file__))) + save_directory, self.model_name + '_ppo_cnn')
 
         self.conv1 = Conv2D(conv1_dims[0], conv1_dims[1], activation='relu', padding='same')
         self.pool1 = MaxPooling2D(pool_size=(2, 2))

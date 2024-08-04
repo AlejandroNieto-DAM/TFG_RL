@@ -112,6 +112,34 @@ class CNNActor(tf.keras.Model):
             tf.keras.layers.Dense(n_actions,  kernel_initializer=XavierInitializer())
         ])
         """
+
+        self.conv_block1 = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(3, (3,3), strides=(1,1), padding="same"),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.Conv2D(32, (3,3), strides=(1,1), padding="same"),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.MaxPooling2D(pool_size=(2,2))
+        ])
+
+        self.conv_block2 = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(32, (3,3), strides=(1,1), padding="same"),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.Conv2D(64, (3,3), strides=(1,1), padding="same"),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.MaxPooling2D(pool_size=(2,2))
+        ])
+
+        self.dense_net = tf.keras.Sequential([
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(256),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.Dense(128),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.Dense(n_actions)
+        ])
+
+        
+        """
         self.conv1 = tf.keras.layers.Conv2D(conv1_dims[0], conv1_dims[1], activation='relu', padding='same', input_shape=input_shape)
         self.pool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
         self.conv2 = tf.keras.layers.Conv2D(conv2_dims[0], conv2_dims[1], activation='relu', padding='same')
@@ -119,11 +147,10 @@ class CNNActor(tf.keras.Model):
         self.flatten = tf.keras.layers.Flatten()
         self.fc1 = tf.keras.layers.Dense(fc1_dims, activation='relu')
         self.fc2 = tf.keras.layers.Dense(n_actions, activation='softmax')
-
+        """
 
     def call(self, state):
-        #x = self.net(state)
-        #x = tf.nn.softmax(x, axis=-1)
+        """
         x = self.conv1(state)
         x = self.pool1(x)
         x = self.conv2(x)
@@ -131,6 +158,12 @@ class CNNActor(tf.keras.Model):
         x = self.flatten(x)
         x = self.fc1(x)
         x = self.fc2(x)
+
+        """
+        x = self.conv_block1(state)
+        x = self.conv_block2(x)
+        x = self.dense_net(x)
+        x = tf.nn.softmax(x, axis=-1)
         return x
 
     def evaluate(self, state, epsilon=1e-8):
@@ -172,7 +205,8 @@ class CNNCritic(tf.keras.Model):
             tf.keras.layers.PReLU(),
             tf.keras.layers.Dense(n_actions,  kernel_initializer=XavierInitializer())
         ])
-        """
+       
+
         self.conv1 = tf.keras.layers.Conv2D(conv1_dims[0], conv1_dims[1], activation='relu', padding='same', input_shape=input_shape)
         self.pool1 = tf.keras.layers.MaxPooling2D(pool_size=(2, 2))
         self.conv2 = tf.keras.layers.Conv2D(conv2_dims[0], conv2_dims[1], activation='relu', padding='same')
@@ -181,9 +215,35 @@ class CNNCritic(tf.keras.Model):
         self.fc1 = tf.keras.layers.Dense(fc1_dims, activation='relu')
         self.fc2 = tf.keras.layers.Dense(fc2_dims, activation='relu')
         self.q_value = tf.keras.layers.Dense(n_actions)
+        """
 
+        self.conv_block1 = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(3, (3,3), strides=(1,1), padding="same"),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.Conv2D(32, (3,3), strides=(1,1), padding="same"),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.MaxPooling2D(pool_size=(2,2))
+        ])
+
+        self.conv_block2 = tf.keras.Sequential([
+            tf.keras.layers.Conv2D(32, (3,3), strides=(1,1), padding="same"),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.Conv2D(64, (3,3), strides=(1,1), padding="same"),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.MaxPooling2D(pool_size=(2,2))
+        ])
+
+        self.dense_net = tf.keras.Sequential([
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(256),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.Dense(128),
+            tf.keras.layers.ReLU(),
+            tf.keras.layers.Dense(n_actions)
+        ])
 
     def call(self, state):
+        """
         x = self.conv1(state)
         x = self.pool1(x)
         x = self.conv2(x)
@@ -192,6 +252,10 @@ class CNNCritic(tf.keras.Model):
         x = self.fc1(x)
         x = self.fc2(x)
         x = self.q_value(x)
+        """
+        x = self.conv_block1(state)
+        x = self.conv_block2(x)
+        x = self.dense_net(x)
         return x
 
     #def call(self, state):

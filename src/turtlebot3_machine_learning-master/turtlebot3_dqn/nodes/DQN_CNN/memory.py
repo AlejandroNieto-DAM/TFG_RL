@@ -15,7 +15,7 @@ class ReplayBuffer():
         self.counter = 0
         self.n_actions = n_actions
 
-        if self.using_camera: shape = (128,128,3)
+        if self.using_camera: shape = (64,64,3)
 
         self.states = np.zeros((self.mem_size, *shape))
         self.new_states = np.zeros((self.mem_size, *shape))
@@ -91,7 +91,7 @@ class ReplayBuffer():
         # Esto lo hago debido a que cada estado va ligado a su recompensa, entonces
         # si hago data augmentation tengo que ligar las imagenes nuevas con sus probabilidades y
         # demás para que todo este ligado ALL HAVE SENSEEE BELIEVE MEEE
-        num_augments = 3
+        num_augments = 5
 
         augmented_images = self.augment_image(state[np.newaxis, ...], num_augments)
 

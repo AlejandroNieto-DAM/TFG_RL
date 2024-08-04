@@ -43,12 +43,12 @@ class QNetwork(Model):
 
 
 class CNNQNetwork(Model):
-    def __init__(self, conv1_dims, conv2_dims, fc1_dims, fc2_dims, n_actions, name, save_directory = '/model_weights/dqn/'):
+    def __init__(self, n_actions, name, save_directory = '/model_weights/dqn/'):
         super(CNNQNetwork, self).__init__()
         self.n_actions = n_actions
 
         self.net = Sequential([
-            Conv2D(256, (8, 8), activation='relu', input_shape=(128, 128, 3)),
+            Conv2D(256, (8, 8), activation='relu', input_shape=(64, 64, 3)),
             MaxPooling2D(pool_size=(2, 2)),
             Dropout(0.2),
             Conv2D(256, (4, 4), activation='relu',),

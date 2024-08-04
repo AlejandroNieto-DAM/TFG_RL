@@ -37,12 +37,12 @@ class PPOAgent:
         self.memory.store_data(state, action, probs, vals, reward, done)
 
     def save_models(self):
-        self.actor.save_weights(self.actor.save_directory + ".h5")
-        self.critic.save_weights(self.critic.save_directory + ".h5")
+        self.actor.save_weights(self.actor.save_directory)
+        self.critic.save_weights(self.critic.save_directory)
 
     def load_models(self):
-        self.actor.load_weights(self.actor.save_directory + ".h5")
-        self.critic.load_weights(self.critic.save_directory + ".h5")
+        self.actor.load_weights(self.actor.save_directory)
+        self.critic.load_weights(self.critic.save_directory)
 
     def choose_action(self, observation):
         state = tf.convert_to_tensor([observation])
@@ -116,4 +116,3 @@ class PPOAgent:
         self.memory.clear_data()
 
         return np.array(actor_loss_mean).mean(), np.array(critic_loss_mean).mean()
-

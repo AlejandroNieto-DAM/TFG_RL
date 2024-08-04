@@ -1,5 +1,5 @@
-from nodes.DQN.networks import QNetwork, CNNQNetwork
-from nodes.DQN.memory import ReplayBuffer
+from nodes.DQN_CNN.networks import QNetwork, CNNQNetwork
+from nodes.DQN_CNN.memory import ReplayBuffer
 import os
 import numpy as np
 import tensorflow as tf
@@ -8,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 import rospy
 
 class DQN():
-    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, epsilon_min = 0.01, gamma = 0.99, lr = 0.003, epsilon = 1.0, max_size = 100000, input_dims=[364], batch_size = 64, using_camera=0):
+    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, epsilon_min = 0.01, gamma = 0.99, lr = 0.0003, epsilon = 1.0, max_size = 100000, input_dims=[364], batch_size = 64, using_camera=0):
         
         self.using_camera = using_camera
         self.fc1_dims = fc1_dims
@@ -25,12 +25,9 @@ class DQN():
         if self.using_camera: max_size = 7000
         self.memory = ReplayBuffer(max_size, input_dims, n_actions, using_camera)
 
-        if self.using_camera:
-            self.model = CNNQNetwork(conv1_dims=(3, (3, 3)), conv2_dims=(16, (3, 3)), fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="model")
-            self.target_model = CNNQNetwork(conv1_dims=(3, (3, 3)), conv2_dims=(16, (3, 3)), fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
-        else:
-            self.model = QNetwork(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="model")
-            self.target_model = QNetwork(fc1_dims=self.fc1_dims, fc2_dims=self.fc2_dims, n_actions=self.n_actions, name="target_model")
+        self.model = CNNQNetwork(n_actions=self.n_actions, name="model")
+        self.target_model = CNNQNetwork(n_actions=self.n_actions, name="target_model")
+        
        
         self.model.compile(optimizer=Adam(learning_rate=self.lr))
         self.target_model.compile(optimizer=Adam(learning_rate=self.lr))
@@ -57,7 +54,6 @@ class DQN():
         if np.random.rand() < self.epsilon:
             return np.random.randint(self.n_actions)
         
-        rospy.loginfo("PROBS -- " + str(q_values) + " " + str(np.argmax(q_values)))
 
         return np.argmax(q_values)
 
@@ -68,7 +64,7 @@ class DQN():
         
         if len(self.memory.states) < self.batch_size:
             return
-            
+        
         state_arr, action_arr, reward_arr, new_state_arr, dones_arr = self.memory.generate_data(self.batch_size)
 
         states = tf.convert_to_tensor(state_arr, dtype=tf.float32)
@@ -90,8 +86,9 @@ class DQN():
             q_values = tf.reduce_sum(q_values * one_hot_actions, axis=1)
 
             loss =  tf.keras.losses.MSE(y, q_values)
+
+        rospy.loginfo("LOSS --> " + str(loss))
             
-            rospy.loginfo("MIRA MIRA EL LOSS -- " + str(loss))
         model_grads = tape.gradient(loss, self.model.trainable_variables)
         self.model.optimizer.apply_gradients(zip(model_grads, self.model.trainable_variables))
 

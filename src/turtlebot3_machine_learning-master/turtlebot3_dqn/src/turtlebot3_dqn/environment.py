@@ -20,7 +20,6 @@ import time
 import tensorflow as tf
 import cv2
 import torch
-from torchvision import transforms
 import math
 
 bridge = CvBridge()
@@ -53,7 +52,8 @@ class Env():
         self._put_coins()
         
         if self.using_camera:
-            self.camera_topic = "/camera/image"
+            #self.camera_topic = "/camera/image"
+            self.camera_topic = "/camera/image_raw"
             rospy.Subscriber(self.camera_topic, Image, self.image_callback)
             self._check_front_camera_rgb_image_raw_ready()
 
@@ -91,16 +91,14 @@ class Env():
         try:
             # Convert your ROS Image message to OpenCV2
             cv2_img = bridge.imgmsg_to_cv2(data, "bgr8")
-            #bgr_image = cv2_img
-            #rgb_image = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
             rgb_image = tf.image.convert_image_dtype(cv2_img, tf.float32)
             resized_image = tf.image.resize(rgb_image, [64, 64], method=tf.image.ResizeMethod.BILINEAR)
-            resized_image = resized_image / 255
+            
 
         except CvBridgeError as e:
             rospy.loginfo("MIRA LA EXCEPTION -- " + e)
 
-        self.front_camera_rgb_image_raw = resized_image.numpy() # SHape 640 x 480 x 3
+        self.front_camera_rgb_image_raw = resized_image.numpy()
 
     def pause_simulation(self):
         self.pause_proxy()
@@ -132,7 +130,7 @@ class Env():
 
         scan_range = []
         heading = self.heading
-        min_range = 0.2
+        min_range = 0.18
         done = False
 
         for i in range(len(scan.ranges)):
@@ -166,15 +164,14 @@ class Env():
         #rospy.logdebug("Salimos de getState")
         if using_camera:
             state = self.front_camera_rgb_image_raw
-            #cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}.png".format(timestamp=rospy.Time.now()), self.front_camera_rgb_image_raw)
-            #cv2.waitKey(1)
+            
             return state, done
         else:
-            state = scan_range + [heading, current_distance, obstacle_min_range, obstacle_angle] + self.coins_distance.tolist()
+            state = scan_range + [heading, current_distance, obstacle_angle, obstacle_min_range] + self.coins_distance.tolist()
 
         return np.asarray(state), done
     
-    """
+    
     def calculate_reward(self):
         if self.position is None or self.goal_x is None or self.goal_y is None:
             return None  # Esperar a que se obtengan los datos
@@ -195,60 +192,20 @@ class Env():
         theta_degrees = math.degrees(theta)  # Convertir a grados
 
         # Determinar si el objetivo está dentro del ángulo de 60 grados
-        within_cone = 1 if theta_degrees <= 70 else 0
+        within_cone = 1 if theta_degrees <= 60 else 0
 
         # Definir una penalización si no está dentro del ángulo deseado
-        penalty = 0.5
+        penalty = 1.1
 
         # Calcular recompensa
         epsilon = 0.05
         if within_cone:
-            reward = 5 / (distance + epsilon)  # Recompensa basada en la distancia
+            reward = 2 / (distance + epsilon)  # Recompensa basada en la distancia
         else:
-            reward = -5 * (distance + epsilon)  # Penalización por no estar dentro del ángulo deseado
+            reward = -2 * (distance + epsilon) * penalty  # Penalización por no estar dentro del ángulo deseado
 
         return reward
     
-    def calculate_combined_reward(self, collision_penalty):
-        # Calcular distancia
-        dx = self.goal_x - self.position.x
-        dy = self.goal_y - self.position.y
-        distance = math.sqrt(dx**2 + dy**2)
-
-        # Calcular ángulo relativo
-        bot_forward = (math.cos(self.orientation), math.sin(self.orientation))
-        dot_product = dx * bot_forward[0] + dy * bot_forward[1]
-        cos_theta = dot_product / distance
-        cos_theta = max(-1.0, min(1.0, cos_theta))
-        theta = math.acos(cos_theta)
-
-        theta_degrees = math.degrees(theta)  # Convertir a grados
-
-        # Determinar si el objetivo está dentro del ángulo de 60 grados
-        within_cone = 1 if theta_degrees <= 70 else 0
-
-
-
-        # Recompensa basada en la distancia y ángulo
-        reward_distance = 1 / (distance + 0.01)
-        reward_angle = -0.5 * theta
-        
-
-        if within_cone:
-            
-            reward = 2**(reward_distance + reward_angle - collision_penalty * 0.05)
-
-        else:
-            reward = math.log2(2**(reward_distance + reward_angle - collision_penalty * 0.05))
-
-        # Penalización por colisión
-
-
-        # Recompensa combinada
-        #reward = (reward_distance + reward_angle - collision_penalty * 0.05)
-
-        return reward
-    """
     def setReward(self, state, done, action):
         # TODO Podemos cambiar la heurística de la formula
         # para incentivar el estar cerca de las monedas (ahora mismo no se hace nada)
@@ -265,7 +222,7 @@ class Env():
         reward = ((round(yaw_reward[action] * 5, 2)) * distance_rate)
         
        
-        #reward = self.calculate_combined_reward(obs_distance)
+        reward = self.calculate_reward()
         if done:
             rospy.loginfo("Collision!!")
             reward = -200
@@ -319,6 +276,15 @@ class Env():
             # reward
             s_state, _ = self.getState(data, 0)
             reward = self.setReward(s_state, done, action)
+
+            #resized_image_np = (state * 255).astype(np.uint8)
+            #cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}.png".format(timestamp=rospy.Time.now()), resized_image_np)
+            #cv2.waitKey(1)
+
+
+            #cv2.imwrite("/home/nietoff/tfg/src/turtlebot3_machine_learning-master/turtlebot3_dqn/images/ppo_images/image_{timestamp}_{reward}.png".format(timestamp=rospy.Time.now(),reward=reward), )
+            #cv2.waitKey(1)
+
         else:
             reward = self.setReward(state, done, action)
 

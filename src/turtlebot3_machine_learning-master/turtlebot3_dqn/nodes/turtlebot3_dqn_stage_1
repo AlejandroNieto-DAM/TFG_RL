@@ -9,6 +9,7 @@ from nodes.PPOAgent.train import TrainPPO
 from nodes.DQN.train import TrainDQN
 from nodes.SAC.train import TrainSAC
 from nodes.SAC_TF.train import TrainSAC as TrainSACTF
+from nodes.DQN_CNN.train import TrainDQNCNN
 from src.turtlebot3_dqn.environment import Env
  
 if __name__ == '__main__':
@@ -26,7 +27,7 @@ if __name__ == '__main__':
     # Al diablo hay que meter aqui como hacer las dims si se usa la camara!!!
     if using_camera:
         # Should use something like this?
-        state_size = [480, 640, 3]
+        state_size = [64, 64,3]
     else:
         state_size = laser_size + 2 + 2 + number_of_coins
     

@@ -1,5 +1,6 @@
 from nodes.SAC_TF.networks import Actor, Critic, CNNActor, CNNCritic
 from nodes.SAC_TF.memory import ReplayBuffer
+from nodes.SAC_TF.buffer import ReplayBuffer as RP
 import os
 import numpy as np
 import tensorflow as tf
@@ -10,7 +11,7 @@ import copy
 
 
 class SACTf2():
-    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0005, gamma = 0.99, tau = 0.05, max_size = 100000, input_dims=[364], batch_size = 32, using_camera = 0):
+    def __init__(self, fc1_dims = 256, fc2_dims = 256, n_actions = 5, alpha = 0.0005, gamma = 0.99, tau = 0.05, max_size = 100000, input_dims=[364], batch_size = 64, using_camera = 0):
 
         self.using_camera = using_camera
         self.fc1_dims = fc1_dims
@@ -25,7 +26,8 @@ class SACTf2():
         self.gamma = gamma
         self.tau = tau
 
-        self.memory = ReplayBuffer(batch_size, using_camera)
+        #self.memory = ReplayBuffer(batch_size, using_camera)
+        self.memory = RP(batch_size, using_camera, input_dims)
 
         if using_camera:
             self.policy = CNNActor(conv1_dims=(32, (3, 3)), conv2_dims=(64, (3, 3)), fc1_dims = self.fc1_dims, fc2_dims = self.fc2_dims, n_actions = self.n_actions, name = "actor")
@@ -71,78 +73,73 @@ class SACTf2():
     def learn(self):
 
         states, actions, rewards, next_states,  dones = self.memory.get_data()
-
-        for _ in range(5):
             
-            batches = self.memory.generate_batches()
+        batch = self.memory.generate_batches()
+   
+        states_batch = tf.gather(states, batch)
+        actions_batch = tf.gather(actions, batch)
+        rewards_batch = tf.gather(rewards, batch)
+        next_states_batch = tf.gather(next_states, batch)
+        dones_batch = tf.gather(dones, batch)
 
-            for batch in batches:
-                
-                states_batch = tf.gather(states, batch)
-                actions_batch = tf.gather(actions, batch)
-                rewards_batch = tf.gather(rewards, batch)
-                next_states_batch = tf.gather(next_states, batch)
-                dones_batch = tf.gather(dones, batch)
+        #Update critics
+        with tf.GradientTape(persistent = True) as tape:
+            _, action_probs, log_pis = self.policy.evaluate(next_states_batch)
 
-                #Update critics
-                with tf.GradientTape(persistent = True) as tape:
-                    _, action_probs, log_pis = self.policy.evaluate(next_states_batch)
+            Q_target1_next = self.target_q1(next_states_batch)
+            #print("Q_target1_next", Q_target1_next)
+            Q_target2_next = self.target_q2(next_states_batch)
+            #print("Q_target2_next", Q_target2_next)
+            Q_target_next = action_probs * (tf.minimum(Q_target1_next, Q_target2_next) - self.alpha * log_pis)
+            #print("Q_target_next", Q_target_next)
 
-                    Q_target1_next = self.target_q1(next_states_batch)
-                    #print("Q_target1_next", Q_target1_next)
-                    Q_target2_next = self.target_q2(next_states_batch)
-                    #print("Q_target2_next", Q_target2_next)
-                    Q_target_next = action_probs * (tf.minimum(Q_target1_next, Q_target2_next) - self.alpha * log_pis)
-                    #print("Q_target_next", Q_target_next)
+            Q_targets = rewards_batch + (self.gamma * (1 - dones_batch) * tf.reduce_sum(Q_target_next, axis=1))
+            #print("Q_targets", Q_targets)
 
-                    Q_targets = rewards_batch + (self.gamma * (1 - dones_batch) * tf.reduce_sum(Q_target_next, axis=1))
-                    #print("Q_targets", Q_targets)
+            q1_vals = tf.gather(self.q1(states_batch), actions_batch, batch_dims=1)
+            #print("q1_vals", q1_vals)
+            q2_vals = tf.gather(self.q2(states_batch), actions_batch, batch_dims=1)
+            #print("q2_vals", q2_vals)
 
-                    q1_vals = tf.gather(self.q1(states_batch), actions_batch, batch_dims=1)
-                    #print("q1_vals", q1_vals)
-                    q2_vals = tf.gather(self.q2(states_batch), actions_batch, batch_dims=1)
-                    #print("q2_vals", q2_vals)
+            critic_1_loss = 0.5 * keras.losses.MSE(q1_vals, Q_targets)
+            critic_2_loss = 0.5 * keras.losses.MSE(q2_vals, Q_targets)
 
-                    critic_1_loss = 0.5 * keras.losses.MSE(q1_vals, Q_targets)
-                    critic_2_loss = 0.5 * keras.losses.MSE(q2_vals, Q_targets)
+        
+        critic_1_grads = tape.gradient(critic_1_loss, self.q1.trainable_variables)
+        clipped_gradients = [tf.clip_by_norm(g, 1) for g in critic_1_grads]
+        self.q1_optimizer.apply_gradients(zip(clipped_gradients, self.q1.trainable_variables))
 
-                
-                critic_1_grads = tape.gradient(critic_1_loss, self.q1.trainable_variables)
-                clipped_gradients = [tf.clip_by_norm(g, 1) for g in critic_1_grads]
-                self.q1_optimizer.apply_gradients(zip(clipped_gradients, self.q1.trainable_variables))
+        critic_2_grads = tape.gradient(critic_2_loss, self.q2.trainable_variables)
+        clipped_2_gradients = [tf.clip_by_norm(g, 1) for g in critic_2_grads]
+        self.q2_optimizer.apply_gradients(zip(clipped_2_gradients, self.q2.trainable_variables))
 
-                critic_2_grads = tape.gradient(critic_2_loss, self.q2.trainable_variables)
-                clipped_2_gradients = [tf.clip_by_norm(g, 1) for g in critic_2_grads]
-                self.q2_optimizer.apply_gradients(zip(clipped_2_gradients, self.q2.trainable_variables))
+        with tf.GradientTape() as tape2:
+            action_probs = self.policy(states_batch)
+            
+            z = tf.cast(action_probs == 0.0, dtype=tf.float32) * 1e-8
+            log_action_probabilities = tf.math.log(action_probs + z)
+            
+            q1_vals = self.q1(states_batch)   
+            q2_vals = self.q2(states_batch)
 
-                with tf.GradientTape() as tape2:
-                    action_probs = self.policy(states_batch)
-                    
-                    z = tf.cast(action_probs == 0.0, dtype=tf.float32) * 1e-8
-                    log_action_probabilities = tf.math.log(action_probs + z)
-                    
-                    q1_vals = self.q1(states_batch)   
-                    q2_vals = self.q2(states_batch)
+            actor_loss = tf.reduce_mean(tf.reduce_sum((action_probs * (self.alpha * log_action_probabilities - tf.minimum(q1_vals,q2_vals) )), axis=1))
 
-                    actor_loss = tf.reduce_mean(tf.reduce_sum((action_probs * (self.alpha * log_action_probabilities - tf.minimum(q1_vals,q2_vals) )), axis=1))
+        actor_grads = tape2.gradient(actor_loss, self.policy.trainable_variables)
+        #clipped_actor_gradients = [tf.clip_by_norm(g, 1) for g in actor_grads]
+        self.policy_optimizer.apply_gradients(zip(actor_grads, self.policy.trainable_variables))
 
-                actor_grads = tape2.gradient(actor_loss, self.policy.trainable_variables)
-                #clipped_actor_gradients = [tf.clip_by_norm(g, 1) for g in actor_grads]
-                self.policy_optimizer.apply_gradients(zip(actor_grads, self.policy.trainable_variables))
+        #Update alpha
+        with tf.GradientTape() as tape3:
+            log_pis = tf.reduce_mean(tf.reduce_sum(log_pis * action_probs, axis=1))
+            alpha_loss = - tf.reduce_mean(tf.exp(self.log_alpha) * (log_action_probabilities + self.target_entropy))
 
-                #Update alpha
-                with tf.GradientTape() as tape3:
-                    log_pis = tf.reduce_mean(tf.reduce_sum(log_pis * action_probs, axis=1))
-                    alpha_loss = - tf.reduce_mean(tf.exp(self.log_alpha) * (log_action_probabilities + self.target_entropy))
+        alpha_grads = tape3.gradient(alpha_loss, [self.log_alpha])
+        self.log_alpha_optimizer.apply_gradients(zip(alpha_grads, [self.log_alpha]))
+        self.alpha = tf.exp(self.log_alpha)
 
-                alpha_grads = tape3.gradient(alpha_loss, [self.log_alpha])
-                self.log_alpha_optimizer.apply_gradients(zip(alpha_grads, [self.log_alpha]))
-                self.alpha = tf.exp(self.log_alpha)
+        #Update target nets
+        self.update_weights()
 
-                #Update target nets
-                self.update_weights()
-
-        self.memory.clear_data()
 
         return critic_1_loss, critic_2_loss, actor_loss, self.alpha
 

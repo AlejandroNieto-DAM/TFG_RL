@@ -44,48 +44,50 @@ class TrainPPO:
         # Maybe in PPo doesnt work [self.state_size] and we have to change it to self.state_size
         
     def train(self):
+
+        rospy.loginfo("TRAINING PPO")
         
         for e in range(self.episodes):
             done = False
             state = self.env.reset()
             score = 0
-            for t in range(6000):
+            self.timestep = 0
+            
+            while not done:
                 
                 action, prob, val = self.agent.choose_action(state)
-
                 state_, reward, done = self.env.step(action)
+                self.agent.store_transition(state, prob, val, action, reward, done)
 
-                self.n_steps += 1
                 #rospy.loginfo("Action --> " + str(action) + " Probs --> " + str(prob) + " Reward --> " + str(reward))
 
                 
-                self.agent.store_transition(state, prob, val, action, reward, done)
-
+                self.n_steps += 1
                 if self.n_steps % self.N == 0:
                     self.env.pause_simulation()
                     actor_loss, critic_loss = self.agent.learn()
-                    rospy.loginfo("MIRA LA LOSS DEL ACOTR " + str(actor_loss) + " MIRA LA DEL CRITIC " + str(critic_loss))
+                    #rospy.loginfo("MIRA LA LOSS DEL ACOTR " + str(actor_loss) + " MIRA LA DEL CRITIC " + str(critic_loss))
                     self.env.unpause_proxy()
-                    self.learn_iters += 1
 
                 state = state_
                 score += reward
 
-                
-                if t >= 500:
+                self.timestep += 1
+                if self.timestep >= 500:
                     rospy.loginfo("Time out!!")
                     done = True
 
 
                 if done:
-                    """
-                    self.score_history.append(score)
-                    avg_score = np.mean(self.score_history[-100:])
-
-                    if avg_score > self.best_score:
-                        self.best_score = avg_score
-                        self.agent.save_models()
-                    """
                     break
+
+            self.score_history.append(score)
+            avg_score = np.mean(self.score_history[-10:])
+            
+            if avg_score > self.best_score:
+                self.best_score = avg_score
+
+            #if e % 10 == 0:
+            print('episode', e, 'avg score %.1f' % avg_score, 'learning_steps', self.timestep)
 
                 
